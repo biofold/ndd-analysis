@@ -1,4 +1,4 @@
-##Collection of tables of NDD associated Genes
+## Collection of tables of NDD associated Genes
 
 1. SFARI Database Authism related genes			SFARI-Gene_genes_03-28-2024release_05-17-2024.csv
 2. Orphanet developmental disorders			develop_genename.txt
