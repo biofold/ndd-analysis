@@ -26,7 +26,7 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
 2. Generate Conda environment 
    ```bash
    conda config --set channel_priority flexible
-   conda env create -f environment.yml
+   conda env create -f environment_[arch].yml
    conda activate ndd_analysis
    ```
 
