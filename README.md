@@ -32,5 +32,5 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
 
 3. Run the whole pipeline
    ```bash
-   python 0_run_ndd_analysis.py
+   python run_ndd_analysis.py
    ```
