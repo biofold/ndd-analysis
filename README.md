@@ -17,3 +17,15 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
 
 ## Repository Structure
 
+
+
+## Quick Start
+
+1. Clone repository:
+   ```bash
+   git clone https://gitlab.com/biofold/ndd-analysis.git
+   cd ndd-analysis
+
+   conda env create -f environment.yml
+   conda activate ndd_analysis
+   python 0_run_ndd_analysis.py
