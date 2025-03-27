@@ -13,9 +13,10 @@ The Orphanet genes are retrieved from UP000005640_9606.idmapping.tar.gz release 
 
 
 ## Useful links
-DDG2P   https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz     https://ftp.ebi.ac.uk/pub/databases/gene2phenotype
-SFARI   https://gene.sfari.org//wp-content/themes/sfari-gene/utilities/download-csv.php?api-endpoint=genes
-        https://gene.sfari.org//wp-content/themes/sfari-gene/utilities/download-csv.php?api-endpoint=human-gene-scores
-GeneTrek        https://genetrek.pasteur.fr/downloadAllData?filetype=tsv
-SynNDD  https://sysndd.dbmr.unibe.ch/Genes
-DBD     https://dbd.geisingeradmi.org/downloads/DBD-Genes-Full-Data.csv
+1. DDG2P   https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz \
+           https://ftp.ebi.ac.uk/pub/databases/gene2phenotype
+2. SFARI   https://gene.sfari.org//wp-content/themes/sfari-gene/utilities/download-csv.php?api-endpoint=genes \
+           https://gene.sfari.org//wp-content/themes/sfari-gene/utilities/download-csv.php?api-endpoint=human-gene-scores
+3. GeneTrek https://genetrek.pasteur.fr/downloadAllData?filetype=tsv
+4. SynNDD  https://sysndd.dbmr.unibe.ch/Genes
+5. DBD     https://dbd.geisingeradmi.org/downloads/DBD-Genes-Full-Data.csv
