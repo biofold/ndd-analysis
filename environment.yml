@@ -46,10 +46,12 @@ dependencies:
   - matplotlib-base=3.5.3=py39h03b9044_0
   - munkres=1.1.4=pyh9f0ad1d_0
   - ncurses=6.4=hcec6c5f_0
+  - numpy=1.24.2=py39h6ee2318_0
   - olefile=0.47=pyhd8ed1ab_1
   - openjpeg=2.4.0=h6e7aa92_1
   - openssl=3.4.1=hc426f3f_0
   - packaging=24.2=pyhd8ed1ab_2
+  - pandas=2.0.0=py39hecff1ad_0
   - patsy=1.0.1=pyhd8ed1ab_1
   - pillow=8.3.2=py39he9bb72f_0
   - pip=25.0=py39hecd8cb5_0
@@ -83,20 +85,4 @@ dependencies:
   - zlib=1.2.13=h4b97444_1
   - zstandard=0.23.0=py39h80efdc8_1
   - zstd=1.5.0=h582d3a0_0
-  - pip:
-      - attrs==25.3.0
-      - biomart==0.9.2
-      - cattrs==24.1.2
-      - chardet==5.2.0
-      - exceptiongroup==1.2.2
-      - fastobo==0.13.0
-      - future==1.0.0
-      - networkx==3.2.1
-      - numpy==2.0.2
-      - pandas==2.2.3
-      - pronto==2.7.0
-      - pybiomart==0.2.0
-      - requests-cache==1.2.1
-      - typing-extensions==4.12.2
-      - url-normalize==1.4.3
 prefix: /Users/emidio/miniconda/envs/ndd_analysis
