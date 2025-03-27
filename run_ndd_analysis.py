@@ -3,12 +3,16 @@ import os
 import subprocess
 from pathlib import Path
 
+def get_absolute_path(relative_path):
+    """Convert relative path to absolute path based on script location"""
+    return (Path(__file__).parent / relative_path).resolve()
+
 def run_pipeline():
-    # Set up paths
+    # Set up absolute paths
     base_dir = Path(__file__).parent
-    data_dir = base_dir / "data"
-    lib_dir = base_dir / "libs"
-    results_dir = base_dir / "results"
+    data_dir = get_absolute_path("data")
+    lib_dir = get_absolute_path("libs")
+    results_dir = get_absolute_path("results")
     
     # Create results directory if it doesn't exist
     results_dir.mkdir(exist_ok=True)
@@ -29,10 +33,16 @@ def run_pipeline():
     
     print("=== Starting NDD Analysis Pipeline ===")
     
+    # Get absolute paths to script files (now in scripts directory)
+    script1 = get_absolute_path("scripts/1_enrichr_all.py")
+    script2 = get_absolute_path("scripts/2_supercandidate.py")
+    script3 = get_absolute_path("scripts/3_count_supercandidate.py")
+    script4 = get_absolute_path("scripts/4_compare_subsets.py")
+
     # Step 1: Enrichment analysis
     print("\nRunning enrichment analysis...")
     subprocess.run([
-        "python", "1_enrichr_all.py",
+        "python", str(script1),
         str(gene_files["set2"]),
         str(gene_files["set1"]),
         str(gene_files["set0"]),
@@ -43,7 +53,7 @@ def run_pipeline():
     # Step 2: Supercandidate identification
     print("\nIdentifying supercandidate genes...")
     subprocess.run([
-        "python", "2_supercandidate.py",
+        "python", str(script2),
         str(gene_files["set1"]),
         str(gene_files["set2"]),
         "--output_dir", str(results_dir)
@@ -53,7 +63,7 @@ def run_pipeline():
     print("\nAnalyzing score distributions...")
     mondo_enrichment = results_dir / "gene_set2_MONDO_GROUPS_2025.tsv"
     subprocess.run([
-        "python", "3_count_supercandidate.py",
+        "python", str(script3),
         str(results_dir / "supercandidate.tsv"),
         str(gene_files["set1"]),
         str(mondo_enrichment),
@@ -65,7 +75,7 @@ def run_pipeline():
     # Step 4: Subset comparison
     print("\nComparing subsets...")
     subprocess.run([
-        "python", "4_compare_subsets.py",
+        "python", str(script4),
         str(results_dir / "dist_mondo_supercandidate.txt"),
         "2", "3",
         "--label_col", "1",

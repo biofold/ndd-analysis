@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from pathlib import Path
 import gseapy as gp
 import pandas as pd
 import numpy as np
@@ -361,10 +362,8 @@ def generate_summary_table(input_files, libraries, output_dir, adjusted_p_thresh
 
 
 def main():
-    # Get the absolute path of the script
-    script_path = os.path.abspath(sys.argv[0])
     # Get the directory of the script
-    script_dir = os.path.dirname(script_path)
+    script_dir=Path(__file__).parent.parent
     global ndd_path 
     ndd_path = script_dir
 
