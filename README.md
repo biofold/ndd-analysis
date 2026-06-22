@@ -30,7 +30,12 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
    conda activate ndd_analysis
    ```
 
-3. Run the whole pipeline
+3. Run the enrichment pipeline
    ```bash
-   python run_ndd_analysis.py
+   python run_ndd_analysis.py -c config.yaml
+   ```
+
+4. Run the whole pipeline including cancer enrichment analysis
+   ```bash
+   ./run_all_ndd.sh
    ```
