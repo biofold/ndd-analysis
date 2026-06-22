@@ -377,6 +377,8 @@ def main():
                        help='Output directory for results')
     parser.add_argument('--summary_file', default="summary_table.tsv",
                        help='Name of the summary output file')
+    parser.add_argument('--libraries', type=str, default=None,
+                       help='Comma-separated list of libraries to use (default: all libraries)')
     args = parser.parse_args()
 
     # Read gene lists from files
@@ -389,18 +391,22 @@ def main():
         sys.stderr.write(f"Number of genes in {os.path.basename(input_files[i])}: {len(gene_list)}\n")
 
     # Define the gene set libraries
-    libraries = [
-        "GO_Biological_Process_2025",
-        "GO_Cellular_Component_2025",
-        "GO_Molecular_Function_2025",
-        "KEGG_2021_Human",
-        "Reactome_Pathways_2024",
-        "SynGO_2024",
-        "SynGO_BP_2024",
-        "SynGO_CC_2024",
-        "MONDO_2025",
-        "MONDO_GROUPS_2025"
-    ]
+    if args.libraries:
+        libraries = [lib.strip() for lib in args.libraries.split(",")] 
+    else:
+        libraries = [
+            "GO_Biological_Process_2026",
+            "GO_Biological_Process_Cancer_2026",
+            "GO_Cellular_Component_2026",
+            "GO_Molecular_Function_2026",
+            "KEGG_2021_Human",
+            "Reactome_Pathways_2024",
+            "SynGO_2024",
+            "SynGO_BP_2024",
+            "SynGO_CC_2024",
+            "MONDO_2025",
+            "MONDO_GROUPS_2025"
+        ] 
 
     # Define the adjusted p-value threshold
     adjusted_p_threshold = 0.01

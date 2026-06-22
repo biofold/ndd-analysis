@@ -5,6 +5,12 @@ import sys
 import matplotlib.pyplot as plt
 import argparse
 
+libs = ['GO_Biological_Process_2026', 
+             'GO_Cellular_Component_2026',
+             'GO_Molecular_Function_2026', 
+             'KEGG_2021_Human', 
+             'Reactome_Pathways_2024']
+
 def get_significant_terms(enrichment_file, p_value_threshold=0.01):
     """Reads an enrichment file and returns a set of significant terms."""
     if os.path.exists(enrichment_file):
@@ -36,12 +42,10 @@ def get_basename(file_path):
     """Returns the basename of a file (without extension)."""
     return os.path.splitext(os.path.basename(file_path))[0]
 
-def match_terms(set1_file, set2_file, output_dir, p_value_threshold=0.01, p_value_filter=None):
+def match_terms(set1_file, set2_file, output_dir, p_value_threshold=0.01, p_value_filter=None, libraries=libs):
     """Processes enrichment files and generates the output."""
     set1_basename = get_basename(set1_file)
     set2_basename = get_basename(set2_file)
-    libraries = ['GO_Biological_Process_2025', 'GO_Cellular_Component_2025', 
-                'GO_Molecular_Function_2025', 'KEGG_2021_Human', 'Reactome_Pathways_2024']
     all_genes_with_terms = {}
 
     for library in libraries:
@@ -129,14 +133,27 @@ def main():
     parser.add_argument('--output_dir', default='.', help='Output directory')
     parser.add_argument('--output', default='supercandidate', help='Base name for output files')
     parser.add_argument('--plot', help='Prefix for plot filenames (plots will be generated only if this is provided)')
+    parser.add_argument('--libraries', type=str, default=None,
+                       help='Comma-separated list of libraries to use (default: all libraries)')
     args = parser.parse_args()
 
     # Create output directory if it doesn't exist
     os.makedirs(args.output_dir, exist_ok=True)
 
+    # Libraries
+    if args.libraries:
+        libs = [lib.strip() for lib in args.libraries.split(",")]
+    else:
+        libs = ['GO_Biological_Process_2026',
+                     'GO_Cellular_Component_2026',
+                     'GO_Molecular_Function_2026',
+                     'KEGG_2021_Human',
+                     'Reactome_Pathways_2024']
+
     # Generate and save results
-    results_all = match_terms(args.set1_file, args.set2_file, args.output_dir)
-    results_filter = match_terms(args.set1_file, args.set2_file, args.output_dir, 0.01, 0.01)
+    results_all = match_terms(args.set1_file, args.set2_file, args.output_dir, libraries=libs)
+    results_filter = match_terms(args.set1_file, args.set2_file, args.output_dir, 
+                                 p_value_threshold=0.01, libraries=libs)
 
     save_matches(results_all, os.path.join(args.output_dir, f'{args.output}.tsv'))
     save_matches(results_filter, os.path.join(args.output_dir, f'{args.output}_filtered.tsv'))

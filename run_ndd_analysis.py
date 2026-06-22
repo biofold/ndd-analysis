@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import os
+import argparse
 import subprocess
 import sys
+import yaml
 from pathlib import Path
 
 def get_absolute_path(relative_path):
@@ -42,38 +44,150 @@ def run_command(command, step_name=None):
         print(f"\nUnexpected error running command: {e}", file=sys.stderr)
         raise
 
-def run_pipeline():
+def load_yaml_config(config_path):
+    """Load configuration from YAML file"""
+    config_path = Path(config_path).resolve()
+    if not config_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    return config
+
+def run_pipeline(data_dir=None, lib_dir=None, output_dir=None, 
+                 set0=None, set1=None, set2=None, background=None,
+                 config_file=None, libraries_enrichment=None, 
+                 libraries_supercandidate=None):
+    
+    # Load YAML config if provided
+    if config_file:
+        print(f"Loading configuration from: {config_file}", file=sys.stderr)
+        config = load_yaml_config(config_file)
+        
+        # YAML config overrides defaults but command-line args override YAML
+        if not data_dir and 'data_dir' in config:
+            data_dir = config['data_dir']
+        if not lib_dir and 'lib_dir' in config:
+            lib_dir = config['lib_dir']
+        if not output_dir and 'output_dir' in config:
+            output_dir = config['output_dir']
+        if not set0 and 'set0' in config:
+            set0 = config['set0']
+        if not set1 and 'set1' in config:
+            set1 = config['set1']
+        if not set2 and 'set2' in config:
+            set2 = config['set2']
+        if not background and 'background' in config:
+            background = config['background']
+        if not libraries_enrichment and 'libraries_enrichment' in config:
+            libraries_enrichment = config['libraries_enrichment']
+        if not libraries_supercandidate and 'libraries_supercandidate' in config:
+            libraries_supercandidate = config['libraries_supercandidate']
+    
+    # Set default libraries if not provided
+    if not libraries_enrichment:
+        libraries_enrichment = [
+            "GO_Biological_Process_2026",
+            "GO_Biological_Process_Cancer_2026",
+            "GO_Cellular_Component_2026",
+            "GO_Molecular_Function_2026",
+            "KEGG_2021_Human",
+            "Reactome_Pathways_2024",
+            "SynGO_2024",
+            "SynGO_BP_2024",
+            "SynGO_CC_2024",
+            "MONDO_2025",
+            "MONDO_GROUPS_2025"
+        ]
+    
+    if not libraries_supercandidate:
+        libraries_supercandidate = [
+            'GO_Biological_Process_2026', 
+            'GO_Cellular_Component_2026',
+            'GO_Molecular_Function_2026', 
+            'KEGG_2021_Human', 
+            'Reactome_Pathways_2024'
+        ]
+    
     # Set up absolute paths
     base_dir = Path(__file__).parent
-    data_dir = get_absolute_path("data")
-    lib_dir = get_absolute_path("libs")
-    results_dir = get_absolute_path("results")
+    
+    # Use specified directories or defaults
+    if data_dir:
+        data_dir = Path(data_dir).resolve()
+    else:
+        data_dir = get_absolute_path("data")
+    
+    if lib_dir:
+        lib_dir = Path(lib_dir).resolve()
+    else:
+        lib_dir = get_absolute_path("libs")
+    
+    if output_dir:
+        results_dir = Path(output_dir).resolve()
+    else:
+        results_dir = get_absolute_path("results")
     
     # Create results directory if it doesn't exist
-    results_dir.mkdir(exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
     
-    # Define file paths
+    # Define file paths for gene sets
     gene_files = {
-        "set0": data_dir / "gene_set0.txt",
-        "set1": data_dir / "gene_set1.txt",
-        "set2": data_dir / "gene_set2.txt",
-        "background": data_dir / "gene_all.txt"
+        "set0": Path(set0).resolve() if set0 else data_dir / "gene_set0.txt",
+        "set1": Path(set1).resolve() if set1 else data_dir / "gene_set1.txt",
+        "set2": Path(set2).resolve() if set2 else data_dir / "gene_set2.txt",
+        "background": Path(background).resolve() if background else data_dir / "gene_all.txt"
     }
+    
     gmt_file = lib_dir / "MONDO_GROUPS_2025.gmt"
     
     # Check if all input files exist
+    print("=== Configuration ===", file=sys.stderr)
+    print(f"Data directory: {data_dir}", file=sys.stderr)
+    print(f"Library directory: {lib_dir}", file=sys.stderr)
+    print(f"Output directory: {results_dir}", file=sys.stderr)
+    if config_file:
+        print(f"Config file: {config_file}", file=sys.stderr)
+    print(file=sys.stderr)
+    
+    print("=== Libraries Configuration ===", file=sys.stderr)
+    print(f"Enrichment analysis libraries ({len(libraries_enrichment)}):", file=sys.stderr)
+    for lib in libraries_enrichment:
+        print(f"  • {lib}", file=sys.stderr)
+    print(f"\nSupercandidate libraries ({len(libraries_supercandidate)}):", file=sys.stderr)
+    for lib in libraries_supercandidate:
+        print(f"  • {lib}", file=sys.stderr)
+    print(file=sys.stderr)
+    
+    print("=== Checking input files ===", file=sys.stderr)
+    
     for name, path in gene_files.items():
         if not path.exists():
             raise FileNotFoundError(f"Missing input file: {path}")
+        print(f"  ✓ Found {name}: {path}", file=sys.stderr)
     
-    print("=== Starting NDD Analysis Pipeline ===", file=sys.stderr)
+    if not gmt_file.exists():
+        raise FileNotFoundError(f"Missing GMT file: {gmt_file}")
+    print(f"  ✓ Found GMT file: {gmt_file}", file=sys.stderr)
+    
+    print(f"\n=== Starting NDD Analysis Pipeline ===", file=sys.stderr)
     
     # Get absolute paths to script files (now in scripts directory)
     script1 = get_absolute_path("scripts/1_enrichr_all.py")
     script2 = get_absolute_path("scripts/2_supercandidate.py")
     script3 = get_absolute_path("scripts/3_count_supercandidate.py")
     script4 = get_absolute_path("scripts/4_compare_subsets.py")
+    
+    # Check if scripts exist
+    for script in [script1, script2, script3, script4]:
+        if not script.exists():
+            raise FileNotFoundError(f"Missing script: {script}")
 
+    # Convert library lists to comma-separated strings
+    enrichment_libs_str = ",".join(libraries_enrichment)
+    supercandidate_libs_str = ",".join(libraries_supercandidate)
+    
     try:
         # Step 1: Enrichment analysis
         run_command([
@@ -82,7 +196,8 @@ def run_pipeline():
             str(gene_files["set1"]),
             str(gene_files["set0"]),
             str(gene_files["background"]),
-            "--output_dir", str(results_dir)
+            "--output_dir", str(results_dir),
+            "--libraries", enrichment_libs_str
         ], step_name="Running enrichment analysis")
         
         # Step 2: Supercandidate identification
@@ -90,7 +205,8 @@ def run_pipeline():
             "python", str(script2),
             str(gene_files["set1"]),
             str(gene_files["set2"]),
-            "--output_dir", str(results_dir)
+            "--output_dir", str(results_dir),
+            "--libraries", supercandidate_libs_str
         ], step_name="Identifying supercandidate genes")
         
         # Step 3: Score distribution analysis
@@ -101,6 +217,7 @@ def run_pipeline():
             str(gene_files["set1"]),
             str(mondo_enrichment),
             str(gmt_file),
+            "-p", "1.00",
             "--plot", str(results_dir / "dist_mondo_supercandidate.png"),
             "--output", str(results_dir / "dist_mondo_supercandidate.txt")
         ], step_name="Analyzing score distributions")
@@ -118,6 +235,10 @@ def run_pipeline():
         
         print("\n=== Pipeline completed successfully ===", file=sys.stderr)
         print(f"Results saved to: {results_dir}", file=sys.stderr)
+        print("\nOutput files:", file=sys.stderr)
+        for file in sorted(results_dir.glob("*")):
+            if file.is_file():
+                print(f"  • {file.name}", file=sys.stderr)
     
     except subprocess.CalledProcessError:
         print("\n=== Pipeline failed ===", file=sys.stderr)
@@ -127,4 +248,131 @@ def run_pipeline():
         sys.exit(1)
 
 if __name__ == "__main__":
-    run_pipeline()
+    parser = argparse.ArgumentParser(
+        description="NDD Analysis Pipeline - Run enrichment analysis and supercandidate identification",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Use default directories and libraries
+  %(prog)s
+  
+  # Use a YAML configuration file
+  %(prog)s -c config.yaml
+  
+  # Specify custom libraries via command line
+  %(prog)s --libraries_enrichment "GO_BP_2026,KEGG_2021" --libraries_supercandidate "GO_BP_2026"
+
+YAML Configuration File Format:
+  data_dir: /Users/emidio/projects/ndd-analysis/data
+  lib_dir: /Users/emidio/projects/ndd-analysis/libs
+  output_dir: /Users/emidio/projects/ndd-analysis/results
+  set0: gene_set0.txt
+  set1: gene_set1.txt
+  set2: gene_set2.txt
+  background: gene_all.txt
+  libraries_enrichment:
+    - GO_Biological_Process_2026
+    - GO_Cellular_Component_2026
+    - GO_Molecular_Function_2026
+    - KEGG_2021_Human
+    - Reactome_Pathways_2024
+  libraries_supercandidate:
+    - GO_Biological_Process_2026
+    - GO_Cellular_Component_2026
+    - GO_Molecular_Function_2026
+    - KEGG_2021_Human
+    - Reactome_Pathways_2024
+        """
+    )
+    
+    # Directory options
+    parser.add_argument(
+        "-d", "--data_dir",
+        type=str,
+        default=None,
+        help="Directory containing input gene files (default: 'data' in script directory)"
+    )
+    parser.add_argument(
+        "-l", "--lib_dir",
+        type=str,
+        default=None,
+        help="Directory containing GMT library files (default: 'libs' in script directory)"
+    )
+    parser.add_argument(
+        "-o", "--output_dir",
+        type=str,
+        default=None,
+        help="Directory for output results (default: 'results' in script directory)"
+    )
+    
+    # Gene set options
+    parser.add_argument(
+        "-s0", "--set0",
+        type=str,
+        default=None,
+        help="Path to gene set 0 file (default: data/gene_set0.txt)"
+    )
+    parser.add_argument(
+        "-s1", "--set1",
+        type=str,
+        default=None,
+        help="Path to gene set 1 file (default: data/gene_set1.txt)"
+    )
+    parser.add_argument(
+        "-s2", "--set2",
+        type=str,
+        default=None,
+        help="Path to gene set 2 file (default: data/gene_set2.txt)"
+    )
+    parser.add_argument(
+        "-b", "--background",
+        type=str,
+        default=None,
+        help="Path to background gene file (default: data/gene_all.txt)"
+    )
+    
+    # Library options
+    parser.add_argument(
+        "--libraries_enrichment",
+        type=str,
+        default=None,
+        help="Comma-separated list of libraries for enrichment analysis"
+    )
+    parser.add_argument(
+        "--libraries_supercandidate",
+        type=str,
+        default=None,
+        help="Comma-separated list of libraries for supercandidate identification"
+    )
+    
+    # YAML configuration file
+    parser.add_argument(
+        "-c", "--config",
+        type=str,
+        default=None,
+        help="YAML configuration file (command-line args override YAML values)"
+    )
+    
+    args = parser.parse_args()
+    
+    # Parse comma-separated library strings if provided via command line
+    libraries_enrichment = None
+    libraries_supercandidate = None
+    
+    if args.libraries_enrichment:
+        libraries_enrichment = [lib.strip() for lib in args.libraries_enrichment.split(",")]
+    if args.libraries_supercandidate:
+        libraries_supercandidate = [lib.strip() for lib in args.libraries_supercandidate.split(",")]
+    
+    run_pipeline(
+        data_dir=args.data_dir,
+        lib_dir=args.lib_dir,
+        output_dir=args.output_dir,
+        set0=args.set0,
+        set1=args.set1,
+        set2=args.set2,
+        background=args.background,
+        config_file=args.config,
+        libraries_enrichment=libraries_enrichment,
+        libraries_supercandidate=libraries_supercandidate
+    )
