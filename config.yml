@@ -1,0 +1,35 @@
+# Directory paths
+data_dir: /Users/emidio/projects/ndd-analysis/data
+lib_dir: /Users/emidio/projects/ndd-analysis/libs
+output_dir: /Users/emidio/projects/ndd-analysis/results
+
+# Conda environment
+conda_env: ndd_analysis
+
+# Gene set files
+set0: /Users/emidio/projects/ndd-analysis/data/gene_set0.txt
+set1: /Users/emidio/projects/ndd-analysis/data/gene_set1.txt
+set2: /Users/emidio/projects/ndd-analysis/data/gene_set2.txt
+background: /Users/emidio/projects/ndd-analysis/data/gene_all.txt
+
+# Libraries for enrichment analysis (script 1)
+libraries_enrichment:
+  - GO_Biological_Process_2026
+  - GO_Biological_Process_Cancer_2026
+  - GO_Cellular_Component_2026
+  - GO_Molecular_Function_2026
+  - KEGG_2021_Human
+  - Reactome_Pathways_2024
+  - SynGO_2024
+  - SynGO_BP_2024
+  - SynGO_CC_2024
+  - MONDO_2025
+  - MONDO_GROUPS_2025
+
+# Libraries for supercandidate identification (script 2)
+libraries_supercandidate:
+  - GO_Biological_Process_2026
+  - GO_Cellular_Component_2026
+  - GO_Molecular_Function_2026
+  - KEGG_2021_Human
+  - Reactome_Pathways_2024
