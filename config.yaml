@@ -3,6 +3,9 @@ data_dir: /Users/emidio/projects/ndd-analysis/data
 lib_dir: /Users/emidio/projects/ndd-analysis/libs
 output_dir: /Users/emidio/projects/ndd-analysis/test_results
 
+# Conda environment
+conda_env: ndd_analysis
+
 # Gene set files
 set0: /Users/emidio/projects/ndd-analysis/data/gene_set0.txt
 set1: /Users/emidio/projects/ndd-analysis/data/gene_set1.txt

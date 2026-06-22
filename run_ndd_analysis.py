@@ -10,13 +10,65 @@ def get_absolute_path(relative_path):
     """Convert relative path to absolute path based on script location"""
     return (Path(__file__).parent / relative_path).resolve()
 
-def run_command(command, step_name=None):
+def get_conda_python(env_name="ndd_analysis"):
     """
-    Run a command with proper error handling and output capture
+    Get the Python executable path for a conda environment.
+    
+    Args:
+        env_name (str): Name of the conda environment
+    
+    Returns:
+        str: Path to the Python executable in the conda environment
+    """
+    try:
+        # Try to get the Python path from conda
+        result = subprocess.run(
+            ["conda", "run", "-n", env_name, "which", "python"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        python_path = result.stdout.strip()
+        return python_path
+    except subprocess.CalledProcessError:
+        # Fallback: try to construct the path manually
+        conda_prefix = os.environ.get("CONDA_PREFIX", None)
+        if conda_prefix:
+            # If we're already in a conda environment, use its parent
+            conda_base = os.path.dirname(conda_prefix)
+        else:
+            # Default conda installation paths
+            possible_bases = [
+                os.path.expanduser("~/miniconda3"),
+                os.path.expanduser("~/anaconda3"),
+                "/opt/miniconda3",
+                "/opt/anaconda3"
+            ]
+            conda_base = None
+            for base in possible_bases:
+                if os.path.exists(base):
+                    conda_base = base
+                    break
+        
+        if conda_base:
+            python_path = os.path.join(conda_base, "envs", env_name, "bin", "python")
+            if os.path.exists(python_path):
+                return python_path
+        
+        # If all else fails, use system python
+        sys.stderr.write(f"Warning: Could not find conda environment '{env_name}', using system python\n")
+        return "python"
+
+def run_command(command, step_name=None, env_name="ndd_analysis"):
+    """
+    Run a command with proper error handling and output capture.
+    Uses the specified conda environment.
     
     Args:
         command (list): Command to run as list of strings
         step_name (str): Optional description of the step
+        env_name (str): Name of the conda environment to use
     
     Returns:
         subprocess.CompletedProcess: The completed process object
@@ -24,12 +76,55 @@ def run_command(command, step_name=None):
     if step_name:
         print(f"\n{step_name}...", file=sys.stderr)
     
+    # If the first element is 'python', replace it with the conda environment's python
+    if command[0] in ["python", "python3"]:
+        command[0] = get_conda_python(env_name)
+    
     # Print the command to stderr
     print(f"Running: {' '.join(command)}", file=sys.stderr)
     
     try:
         result = subprocess.run(
             command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        print("\nCommand failed with error:", file=sys.stderr)
+        print(e.stderr, file=sys.stderr)
+        raise
+    except Exception as e:
+        print(f"\nUnexpected error running command: {e}", file=sys.stderr)
+        raise
+
+def run_command_conda(command, step_name=None, env_name="ndd_analysis"):
+    """
+    Run a command using conda run to ensure it executes in the correct environment.
+    
+    Args:
+        command (list): Command to run as list of strings (without 'python')
+        step_name (str): Optional description of the step
+        env_name (str): Name of the conda environment to use
+    
+    Returns:
+        subprocess.CompletedProcess: The completed process object
+    """
+    if step_name:
+        print(f"\n{step_name}...", file=sys.stderr)
+    
+    # Build conda run command
+    conda_command = ["conda", "run", "-n", env_name] + command
+    
+    # Print the command to stderr
+    print(f"Running: {' '.join(conda_command)}", file=sys.stderr)
+    print(f"(Using conda environment: {env_name})", file=sys.stderr)
+    
+    try:
+        result = subprocess.run(
+            conda_command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -55,10 +150,38 @@ def load_yaml_config(config_path):
     
     return config
 
+def check_conda_env(env_name="ndd_analysis"):
+    """
+    Check if the conda environment exists.
+    
+    Args:
+        env_name (str): Name of the conda environment
+    
+    Returns:
+        bool: True if environment exists, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["conda", "env", "list"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        # Check if environment is in the list
+        for line in result.stdout.split('\n'):
+            if line.strip() and not line.startswith('#'):
+                if line.split()[0] == env_name:
+                    return True
+        return False
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        sys.stderr.write("Warning: conda not found or not accessible\n")
+        return False
+
 def run_pipeline(data_dir=None, lib_dir=None, output_dir=None, 
                  set0=None, set1=None, set2=None, background=None,
                  config_file=None, libraries_enrichment=None, 
-                 libraries_supercandidate=None):
+                 libraries_supercandidate=None, conda_env="ndd_analysis"):
     
     # Load YAML config if provided
     if config_file:
@@ -84,6 +207,17 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             libraries_enrichment = config['libraries_enrichment']
         if not libraries_supercandidate and 'libraries_supercandidate' in config:
             libraries_supercandidate = config['libraries_supercandidate']
+        if 'conda_env' in config:
+            conda_env = config['conda_env']
+    
+    # Check conda environment
+    print(f"=== Checking conda environment: {conda_env} ===", file=sys.stderr)
+    if check_conda_env(conda_env):
+        print(f"  ✓ Conda environment '{conda_env}' found", file=sys.stderr)
+    else:
+        print(f"  ⚠ Warning: Conda environment '{conda_env}' not found", file=sys.stderr)
+        print(f"  Will attempt to use system python (this may fail if dependencies are missing)", file=sys.stderr)
+    print(file=sys.stderr)
     
     # Set default libraries if not provided
     if not libraries_enrichment:
@@ -144,6 +278,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
     
     # Check if all input files exist
     print("=== Configuration ===", file=sys.stderr)
+    print(f"Conda environment: {conda_env}", file=sys.stderr)
     print(f"Data directory: {data_dir}", file=sys.stderr)
     print(f"Library directory: {lib_dir}", file=sys.stderr)
     print(f"Output directory: {results_dir}", file=sys.stderr)
@@ -190,7 +325,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
     
     try:
         # Step 1: Enrichment analysis
-        run_command([
+        run_command_conda([
             "python", str(script1),
             str(gene_files["set2"]),
             str(gene_files["set1"]),
@@ -198,20 +333,20 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             str(gene_files["background"]),
             "--output_dir", str(results_dir),
             "--libraries", enrichment_libs_str
-        ], step_name="Running enrichment analysis")
+        ], step_name="Running enrichment analysis", env_name=conda_env)
         
         # Step 2: Supercandidate identification
-        run_command([
+        run_command_conda([
             "python", str(script2),
             str(gene_files["set1"]),
             str(gene_files["set2"]),
             "--output_dir", str(results_dir),
             "--libraries", supercandidate_libs_str
-        ], step_name="Identifying supercandidate genes")
+        ], step_name="Identifying supercandidate genes", env_name=conda_env)
         
         # Step 3: Score distribution analysis
         mondo_enrichment = results_dir / "gene_set2_MONDO_GROUPS_2025.tsv"
-        run_command([
+        run_command_conda([
             "python", str(script3),
             str(results_dir / "supercandidate.tsv"),
             str(gene_files["set1"]),
@@ -220,10 +355,10 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             "-p", "1.00",
             "--plot", str(results_dir / "dist_mondo_supercandidate.png"),
             "--output", str(results_dir / "dist_mondo_supercandidate.txt")
-        ], step_name="Analyzing score distributions")
+        ], step_name="Analyzing score distributions", env_name=conda_env)
         
         # Step 4: Subset comparison
-        run_command([
+        run_command_conda([
             "python", str(script4),
             str(results_dir / "dist_mondo_supercandidate.txt"),
             "2", "3",
@@ -231,7 +366,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             "--matrix", str(results_dir / "mondo_supercandidate_matrix.txt"),
             "--dendrogram", str(results_dir / "mondo_supercandidate_fisher.png"),
             "--output_file", str(results_dir / "mondo_supercandidate_fisher.txt")
-        ], step_name="Comparing subsets")
+        ], step_name="Comparing subsets", env_name=conda_env)
         
         print("\n=== Pipeline completed successfully ===", file=sys.stderr)
         print(f"Results saved to: {results_dir}", file=sys.stderr)
@@ -253,11 +388,14 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Use default directories and libraries
+  # Use default directories and libraries with ndd_analysis conda environment
   %(prog)s
   
   # Use a YAML configuration file
   %(prog)s -c config.yaml
+  
+  # Specify a different conda environment
+  %(prog)s --conda_env my_env
   
   # Specify custom libraries via command line
   %(prog)s --libraries_enrichment "GO_BP_2026,KEGG_2021" --libraries_supercandidate "GO_BP_2026"
@@ -266,6 +404,7 @@ YAML Configuration File Format:
   data_dir: /Users/emidio/projects/ndd-analysis/data
   lib_dir: /Users/emidio/projects/ndd-analysis/libs
   output_dir: /Users/emidio/projects/ndd-analysis/results
+  conda_env: ndd_analysis
   set0: gene_set0.txt
   set1: gene_set1.txt
   set2: gene_set2.txt
@@ -345,6 +484,14 @@ YAML Configuration File Format:
         help="Comma-separated list of libraries for supercandidate identification"
     )
     
+    # Conda environment option
+    parser.add_argument(
+        "--conda_env",
+        type=str,
+        default="ndd_analysis",
+        help="Name of the conda environment to use (default: ndd_analysis)"
+    )
+    
     # YAML configuration file
     parser.add_argument(
         "-c", "--config",
@@ -374,5 +521,6 @@ YAML Configuration File Format:
         background=args.background,
         config_file=args.config,
         libraries_enrichment=libraries_enrichment,
-        libraries_supercandidate=libraries_supercandidate
+        libraries_supercandidate=libraries_supercandidate,
+        conda_env=args.conda_env
     )
