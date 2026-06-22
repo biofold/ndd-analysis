@@ -1,7 +1,7 @@
 # Directory paths
 data_dir: /Users/emidio/projects/ndd-analysis/data
 lib_dir: /Users/emidio/projects/ndd-analysis/libs
-output_dir: /Users/emidio/projects/ndd-analysis/test_results
+output_dir: /Users/emidio/projects/ndd-analysis/results
 
 # Conda environment
 conda_env: ndd_analysis
