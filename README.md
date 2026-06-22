@@ -32,7 +32,7 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
 
 3. Run the enrichment pipeline
    ```bash
-   python run_ndd_analysis.py -c config.yaml
+   python run_ndd_analysis.py -c config.yml
    ```
 
 4. Run the whole pipeline including cancer enrichment analysis
