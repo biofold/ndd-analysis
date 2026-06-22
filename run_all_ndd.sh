@@ -4,6 +4,7 @@ cancer_dir=$prog_dir/cancer
 cancer_out=$prog_dir/out_cancer
 
 cd $prog_dir
+mkdir -p $prog_dir/results
 mkdir -p $prog_dir/out_cancer
 
 source /Users/emidio/miniconda/etc/profile.d/conda.sh
