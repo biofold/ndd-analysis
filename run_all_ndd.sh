@@ -14,6 +14,11 @@ conda activate ndd_analysis
 echo "- Enrichment Analysis"
 python3 run_ndd_analysis.py -c config.yaml
 
+# MOE Score 4 and 5
+awk '{if ($2==4 || $2==5) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score45.txt
+awk '{if ($2==1 || $2==2 || $2==3) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score13.txt
+python $prog_dir/scripts/1_enrichr_all.py $prog_dir/results/score45.txt $prog_dir/results/score13.txt  $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $prog_dir/results
+
 #Cancer analysis
 echo "- Cancer Analysis"
 python3 $prog_dir/utils/eqset.py $prog_dir/data/gene_set2.txt $prog_dir/data/cancer.txt 1 1 False >$cancer_dir/cancer_gs2.txt 
