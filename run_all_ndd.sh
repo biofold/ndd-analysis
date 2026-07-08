@@ -1,12 +1,13 @@
 #!/bin/bash
 prog_dir=`pwd`
+results=$prog_dir/results
 cancer_dir=$prog_dir/cancer
-cancer_out=$prog_dir/cancer
+cancer_out=$prog_dir/out_cancer
 
 cd $prog_dir
 mkdir -p 
-mkdir -p $prog_dir/results
-mkdir -p $prog_dir/cancer
+mkdir -p $results
+mkdir -p $cancer_out
 
 CONDA_BASE=$(conda info --base) 
 source "$CONDA_BASE/etc/profile.d/conda.sh" 
