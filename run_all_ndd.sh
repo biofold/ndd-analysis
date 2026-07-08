@@ -1,14 +1,15 @@
 #!/bin/bash
 prog_dir=`pwd`
 cancer_dir=$prog_dir/cancer
-cancer_out=$prog_dir/out_cancer
+cancer_out=$prog_dir/cancer
 
 cd $prog_dir
 mkdir -p 
 mkdir -p $prog_dir/results
-mkdir -p $prog_dir/out_cancer
+mkdir -p $prog_dir/cancer
 
-source $HOME/miniconda/etc/profile.d/conda.sh
+CONDA_BASE=$(conda info --base) 
+source "$CONDA_BASE/etc/profile.d/conda.sh" 
 conda activate ndd_analysis
 
 echo "- Enrichment Analysis"
