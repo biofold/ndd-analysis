@@ -76,6 +76,7 @@ dependencies:
   - python-tzdata=2025.2=pyhd8ed1ab_0
   - python_abi=3.11=5_cp311
   - pytz=2024.1=pyhd8ed1ab_0
+  - pyyaml=6.0.2=py39hd18e689_2
   - qhull=2020.2=h434a139_5
   - readline=8.2=h8c095d6_2
   - requests=2.32.3=pyhd8ed1ab_1
