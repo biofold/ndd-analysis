@@ -5,7 +5,7 @@ cancer_dir=$prog_dir/cancer
 cancer_out=$prog_dir/out_cancer
 
 cd $prog_dir
-mkdir -p 
+mkdir -p $cancer_dir
 mkdir -p $results
 mkdir -p $cancer_out
 
@@ -14,7 +14,7 @@ source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate ndd_analysis
 
 echo "- Enrichment Analysis"
-python3 run_ndd_analysis.py -c config.yaml
+python3 run_ndd_analysis.py -c config.yml
 
 # MOE Score 4 and 5
 awk '{if ($2==4 || $2==5) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score45.txt
