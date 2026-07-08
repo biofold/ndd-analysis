@@ -1,16 +1,16 @@
 # Directory paths
-data_dir: /Users/emidio/projects/ndd-analysis/data
-lib_dir: /Users/emidio/projects/ndd-analysis/libs
-output_dir: /Users/emidio/projects/ndd-analysis/test_results
+data_dir: data
+lib_dir: libs
+output_dir: test_results
 
 # Conda environment
 conda_env: ndd_analysis
 
 # Gene set files
-set0: /Users/emidio/projects/ndd-analysis/data/gene_set0.txt
-set1: /Users/emidio/projects/ndd-analysis/data/gene_set1.txt
-set2: /Users/emidio/projects/ndd-analysis/data/gene_set2.txt
-background: /Users/emidio/projects/ndd-analysis/data/gene_all.txt
+set0: data/gene_set0.txt
+set1: data/gene_set1.txt
+set2: data/gene_set2.txt
+background: data/gene_all.txt
 
 # Libraries for enrichment analysis (script 1)
 libraries_enrichment:
