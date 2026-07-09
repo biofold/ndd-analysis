@@ -19,7 +19,7 @@ python3 run_ndd_analysis.py -c config.yml
 # MOE Score 4 and 5
 awk '{if ($2==4 || $2==5) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score45.txt
 awk '{if ($2==1 || $2==2 || $2==3) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score13.txt
-python $prog_dir/scripts/1_enrichr_all.py $prog_dir/results/score45.txt $prog_dir/results/score13.txt  $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $prog_dir/results
+python $prog_dir/scripts/1_enrichr_all.py $prog_dir/results/score45.txt $prog_dir/results/score13.txt  $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $prog_dir/results --summary_file summary_file_candidate.tsv
 
 #Cancer analysis
 echo "- Cancer Analysis"
@@ -30,9 +30,9 @@ python3 $prog_dir/utils/difset.py $prog_dir/data/gene_set1.txt $cancer_dir/cance
 python3 $prog_dir/utils/difset.py $prog_dir/data/gene_set2.txt $cancer_dir/cancer_gs2.txt 1 1 >$cancer_dir/noncancer_gs2.txt 
 python3 $prog_dir/utils/difset.py $prog_dir/data/gene_set0.txt $cancer_dir/cancer_gs0.txt 1 1 >$cancer_dir/noncancer_gs0.txt 
 echo "  1. Cancer Gene Enrichment"
-python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs2.txt $cancer_dir/noncancer_gs2.txt $prog_dir/data/gene_set2.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out
-python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs1.txt $cancer_dir/noncancer_gs1.txt $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out
-python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs0.txt $cancer_dir/noncancer_gs0.txt $prog_dir/data/gene_set0.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out 
+python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs2.txt $cancer_dir/noncancer_gs2.txt $prog_dir/data/gene_set2.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out --summary_file cancer_gs2_summary_file.tsv
+python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs1.txt $cancer_dir/noncancer_gs1.txt $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out --summary_file cancer_gs1_summary_file.tsv
+python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs0.txt $cancer_dir/noncancer_gs0.txt $prog_dir/data/gene_set0.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out --summary_file cancer_gs0_summary_file.tsv
 
 echo "  2. Aggregate cancer results"
 cs1=`wc -l  $cancer_dir/cancer_gs1.txt |awk '{print $1}'`
