@@ -1,5 +1,6 @@
 #!/bin/bash
-prog_dir=`pwd`
+prog_dir=$(dirname `realpath ${0}`)
+cd $prog_dir
 results=$prog_dir/results
 cancer_dir=$prog_dir/cancer
 cancer_out=$prog_dir/out_cancer
@@ -29,6 +30,7 @@ python3 $prog_dir/utils/eqset.py $prog_dir/data/gene_set0.txt $prog_dir/data/can
 python3 $prog_dir/utils/difset.py $prog_dir/data/gene_set1.txt $cancer_dir/cancer_gs1.txt 1 1 >$cancer_dir/noncancer_gs1.txt 
 python3 $prog_dir/utils/difset.py $prog_dir/data/gene_set2.txt $cancer_dir/cancer_gs2.txt 1 1 >$cancer_dir/noncancer_gs2.txt 
 python3 $prog_dir/utils/difset.py $prog_dir/data/gene_set0.txt $cancer_dir/cancer_gs0.txt 1 1 >$cancer_dir/noncancer_gs0.txt 
+
 echo "  1. Cancer Gene Enrichment"
 python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs2.txt $cancer_dir/noncancer_gs2.txt $prog_dir/data/gene_set2.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out --summary_file cancer_gs2_summary_file.tsv
 python3 $prog_dir/scripts/1_enrichr_all.py $cancer_dir/cancer_gs1.txt $cancer_dir/noncancer_gs1.txt $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $cancer_out --summary_file cancer_gs1_summary_file.tsv
