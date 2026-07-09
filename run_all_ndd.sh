@@ -1,5 +1,5 @@
 #!/bin/bash
-prog_dir=$(dirname `realpath ${0}`)
+prog_dir=$(dirname `realpath ${BASH_SOURCE[0]}`)
 cd $prog_dir
 results=$prog_dir/results
 cancer_dir=$prog_dir/cancer
