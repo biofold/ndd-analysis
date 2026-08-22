@@ -231,8 +231,8 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             "SynGO_2024",
             "SynGO_BP_2024",
             "SynGO_CC_2024",
-            "MONDO_2025",
-            "MONDO_GROUPS_2025"
+            "MONDO_2026",
+            "MONDO_GROUPS_2026"
         ]
     
     if not libraries_supercandidate:
@@ -274,7 +274,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
         "background": Path(background).resolve() if background else data_dir / "gene_all.txt"
     }
     
-    gmt_file = lib_dir / "MONDO_GROUPS_2025.gmt"
+    gmt_file = lib_dir / "MONDO_GROUPS_2026.gmt"
     
     # Check if all input files exist
     print("=== Configuration ===", file=sys.stderr)
@@ -345,7 +345,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
         ], step_name="Identifying supercandidate genes", env_name=conda_env)
         
         # Step 3: Score distribution analysis
-        mondo_enrichment = results_dir / "gene_set2_MONDO_GROUPS_2025.tsv"
+        mondo_enrichment = results_dir / "gene_set2_MONDO_GROUPS_2026.tsv"
         run_command_conda([
             "python", str(script3),
             str(results_dir / "supercandidate.tsv"),
