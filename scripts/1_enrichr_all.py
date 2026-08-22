@@ -404,8 +404,8 @@ def main():
             "SynGO_2024",
             "SynGO_BP_2024",
             "SynGO_CC_2024",
-            "MONDO_2025",
-            "MONDO_GROUPS_2025"
+            "MONDO_2026",
+            "MONDO_GROUPS_2026"
         ] 
 
     # Define the adjusted p-value threshold
