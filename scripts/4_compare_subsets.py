@@ -58,7 +58,12 @@ def compare_annotations(
     annotated = [int(row[annotated_col]) for row in data]
     non_annotated = [int(row[non_annotated_col]) for row in data]
     n = len(labels)
-    
+
+    order = sorted(range(n), key=lambda idx: labels[idx])
+    labels   = [labels[idx] for idx in order]
+    annotated = [annotated[idx] for idx in order]
+    non_annotated = [non_annotated[idx] for idx in order]  
+ 
     # Initialize matrices
     pairwise_results = []
     p_matrix = np.full((n, n), np.nan)
@@ -68,10 +73,9 @@ def compare_annotations(
     # Perform all pairwise comparisons
     for i, j in combinations(range(n), 2):
         table = [
-            [annotated[i], non_annotated[i]],
-            [annotated[j], non_annotated[j]]
+            [annotated[j], non_annotated[j]],
+            [annotated[i], non_annotated[i]]
         ]
-        
         odds_ratio, _ = stats.fisher_exact(table)
         
         if use_chi2:
@@ -109,7 +113,6 @@ def compare_annotations(
     # Handle matrix output to file
     
     if matrix_file:
-        labels.sort()
         with open(matrix_file, 'w') as f:
             # Write header
             f.write("Group\t" + "\t".join(labels) + "\n")

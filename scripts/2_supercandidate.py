@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import argparse
 
 libs = ['GO_Biological_Process_2026', 
-             'GO_Cellular_Component_2026',
-             'GO_Molecular_Function_2026', 
-             'KEGG_2021_Human', 
-             'Reactome_Pathways_2024']
+        'GO_Cellular_Component_2026',
+        'GO_Molecular_Function_2026', 
+        'KEGG_2021_Human', 
+        'Reactome_Pathways_2024']
 
 def get_significant_terms(enrichment_file, p_value_threshold=0.01):
     """Reads an enrichment file and returns a set of significant terms."""
@@ -21,7 +21,7 @@ def get_significant_terms(enrichment_file, p_value_threshold=0.01):
         raise FileNotFoundError(f"File not found: {enrichment_file}")
 
 def get_genes_with_terms(enrichment_file, terms, p_value_filter=None):
-    """Reads an enrichment file and returns a dictionary of genes and their terms."""
+    """Reads an enrichment file and returns a dictionary of genes (uppercase) and their terms."""
     if os.path.exists(enrichment_file):
         df = pd.read_csv(enrichment_file, sep='\t')
         if p_value_filter is not None:
@@ -31,28 +31,27 @@ def get_genes_with_terms(enrichment_file, terms, p_value_filter=None):
             if term in df['Term'].values:
                 genes = df[df['Term'] == term]['Genes'].str.split(';').explode().tolist()
                 for gene in genes:
-                    if gene not in genes_with_terms:
-                        genes_with_terms[gene] = set()
-                    genes_with_terms[gene].add(term)
+                    gene_upper = gene.strip().upper()
+                    if gene_upper not in genes_with_terms:
+                        genes_with_terms[gene_upper] = set()
+                    genes_with_terms[gene_upper].add(term)
         return genes_with_terms
     else:
         raise FileNotFoundError(f"File not found: {enrichment_file}")
 
 def get_all_genes_from_file(gene_file):
-    """Reads a gene list file and returns a set of all genes."""
+    """Reads a gene list file and returns a dict mapping uppercase gene -> original gene."""
     if os.path.exists(gene_file):
+        gene_map = {}
         with open(gene_file, 'r') as f:
-            genes = set()
             for line in f:
                 line = line.strip()
-                # Skip comments and empty lines
                 if not line or line.startswith('#'):
                     continue
-                # Take first column if multiple columns
                 gene = line.split('\t')[0].strip()
                 if gene:
-                    genes.add(gene)
-        return genes
+                    gene_map[gene.upper()] = gene   # store original as value
+        return gene_map
     else:
         raise FileNotFoundError(f"File not found: {gene_file}")
 
@@ -64,32 +63,40 @@ def match_terms(set1_file, set2_file, output_dir, p_value_threshold=0.01, p_valu
     """Processes enrichment files and generates the output."""
     set1_basename = get_basename(set1_file)
     set2_basename = get_basename(set2_file)
-    all_genes_with_terms = {}
+    all_genes_with_terms = {}   # keys are uppercase gene names
     
-    # Get all genes from set1 (to include genes with score 0)
-    all_set1_genes = get_all_genes_from_file(set1_file)
-
+    # Get the mapping from uppercase to original gene name
+    gene_map = get_all_genes_from_file(set1_file)
+    
     for library in libraries:
         set1_enrichment_file = os.path.join(output_dir, f"{set1_basename}_{library}.tsv")
         set2_enrichment_file = os.path.join(output_dir, f"{set2_basename}_{library}.tsv")
         significant_terms = get_significant_terms(set2_enrichment_file, p_value_threshold)
         genes_with_terms = get_genes_with_terms(set1_enrichment_file, significant_terms, p_value_filter)
-
-        for gene, terms in genes_with_terms.items():
-            if gene not in all_genes_with_terms:
-                all_genes_with_terms[gene] = set()
-            all_genes_with_terms[gene].add(library)
+        
+        for gene_upper, terms in genes_with_terms.items():
+            # Only include genes that are present in the original input list
+            if gene_upper in gene_map:
+                if gene_upper not in all_genes_with_terms:
+                    all_genes_with_terms[gene_upper] = set()
+                all_genes_with_terms[gene_upper].add(library)
     
     # Include genes with score 0 if requested
     if include_zero_scores:
-        for gene in all_set1_genes:
-            if gene not in all_genes_with_terms:
-                all_genes_with_terms[gene] = set()  # Empty set = score 0
+        for gene_upper in gene_map:   # gene_map keys are uppercase
+            if gene_upper not in all_genes_with_terms:
+                all_genes_with_terms[gene_upper] = set()
+    
+    # Build output DataFrame with original gene names
+    genes_output = []
+    for gene_upper in all_genes_with_terms:
+        original_gene = gene_map.get(gene_upper, gene_upper)
+        genes_output.append(original_gene)
     
     return pd.DataFrame({
-        'Gene': list(all_genes_with_terms.keys()),
-        'Score': [len(terms) for terms in all_genes_with_terms.values()],
-        'Terms': ['|'.join(sorted(terms)) if terms else '' for terms in all_genes_with_terms.values()]
+        'Gene': genes_output,
+        'Score': [len(all_genes_with_terms[gene_upper]) for gene_upper in all_genes_with_terms],
+        'Terms': ['|'.join(sorted(all_genes_with_terms[gene_upper])) if all_genes_with_terms[gene_upper] else '' for gene_upper in all_genes_with_terms]
     })
 
 def save_matches(result_table, output_file):
@@ -170,23 +177,19 @@ def main():
                        help='Exclude genes with score 0')
     args = parser.parse_args()
 
-    # Create output directory if it doesn't exist
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Libraries
     if args.libraries:
         libs = [lib.strip() for lib in args.libraries.split(",")]
     else:
         libs = ['GO_Biological_Process_2026',
-                     'GO_Cellular_Component_2026',
-                     'GO_Molecular_Function_2026',
-                     'KEGG_2021_Human',
-                     'Reactome_Pathways_2024']
+                'GO_Cellular_Component_2026',
+                'GO_Molecular_Function_2026',
+                'KEGG_2021_Human',
+                'Reactome_Pathways_2024']
 
-    # Determine whether to include zero scores
     include_zero_scores = not args.exclude_zero_scores
 
-    # Generate and save results
     results_all = match_terms(args.set1_file, args.set2_file, args.output_dir, 
                               libraries=libs, include_zero_scores=include_zero_scores)
     results_filter = match_terms(args.set1_file, args.set2_file, args.output_dir, 
@@ -196,7 +199,6 @@ def main():
     save_matches(results_all, os.path.join(args.output_dir, f'{args.output}.tsv'))
     save_matches(results_filter, os.path.join(args.output_dir, f'{args.output}_filtered.tsv'))
 
-    # Print summary statistics
     print(f"Total genes in {args.output}.tsv: {len(results_all)}")
     print(f"  Score distribution:")
     print(results_all['Score'].value_counts().sort_index())
@@ -204,7 +206,6 @@ def main():
     print(f"  Score distribution:")
     print(results_filter['Score'].value_counts().sort_index())
 
-    # Generate plots only if --plot is provided
     if args.plot:
         plot_scores(args.output_dir, args.plot)
         plot_cumulative_scores(args.output_dir, args.plot)
