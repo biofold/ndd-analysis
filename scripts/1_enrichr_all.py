@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import os
 import sys
@@ -14,14 +15,28 @@ import seaborn as sns  # For heatmap visualization
 def read_gene_list(file_path):
     """
     Reads a gene list from a file and returns it as a list.
+    Handles empty files by returning an empty list.
+    Skips comment lines starting with #.
     """
-    with open(file_path, "r") as file:
-        return [line.strip().upper() for line in file if line.strip()]
+    genes = []
+    try:
+        with open(file_path, "r") as file:
+            for line in file:
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                genes.append(line.upper())
+    except FileNotFoundError:
+        sys.stderr.write(f"Warning: File not found: {file_path}\n")
+        return []
+    return genes
 
 
 def perform_enrichment(gene_lists, background, library, output_dir, input_files):
     """
     Perform enrichment analysis for multiple gene lists using gseapy for a single library.
+    Skips empty gene lists.
     """
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -30,24 +45,48 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
     for i, (gene_list, input_file) in enumerate(zip(gene_lists, input_files)):
         # Get the basename of the input file (without extension)
         basename = os.path.splitext(os.path.basename(input_file))[0]
+        
+        # Skip empty gene lists
+        if len(gene_list) == 0:
+            sys.stderr.write(f"Warning: Gene list {basename} is empty. Skipping enrichment for {library}.\n")
+            # Create an empty output file to maintain consistency
+            output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
+            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value", 
+                                             "Adjusted P-value", "Odds Ratio", "Combined Score"])
+            empty_df.to_csv(output_file, sep="\t", index=False)
+            continue
+        
         sys.stderr.write(f"Processing gene list {basename} for library {library}...\n")
 
         # Run enrichment analysis
-        library_file=os.path.join(f"{ndd_path}/libs", f"{library}.gmt")
-        enr_results = gp.enrichr(
-            gene_list=gene_list,
-	    #gene_sets=library,
-            gene_sets=library_file,
-            #organism='human',
-            background=background,
-            outdir=None,  # Do not save output automatically
-        )
+        library_file = os.path.join(f"{ndd_path}/libs", f"{library}.gmt")
+        
+        try:
+            enr_results = gp.enrichr(
+                gene_list=gene_list,
+                gene_sets=library_file,
+                background=background,
+                outdir=None,  # Do not save output automatically
+            )
+        except Exception as e:
+            sys.stderr.write(f"Error during enrichment for {basename} with {library}: {e}\n")
+            # Create an empty output file
+            output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
+            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value", 
+                                             "Adjusted P-value", "Odds Ratio", "Combined Score"])
+            empty_df.to_csv(output_file, sep="\t", index=False)
+            continue
 
         # Save results to a file
         output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
-        if enr_results.res2d is None:
-            sys.stderr.write(f"No maching annotation for gene list {basename}.\n")
-            return
+        if enr_results.res2d is None or len(enr_results.res2d) == 0:
+            sys.stderr.write(f"No matching annotation for gene list {basename}.\n")
+            # Create an empty output file
+            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value", 
+                                             "Adjusted P-value", "Odds Ratio", "Combined Score"])
+            empty_df.to_csv(output_file, sep="\t", index=False)
+            continue
+        
         enr_results.res2d = enr_results.res2d.sort_values(by=["Adjusted P-value", "Odds Ratio"], ascending=[True, False])
         enr_results.res2d.to_csv(output_file, sep="\t", index=False)
         sys.stderr.write(f"  Results saved to {output_file}\n")
@@ -59,87 +98,76 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
 def generate_dotplot(enrichment_results, basename, library, output_dir):
     """
     Generates a dot plot for the top 20 enriched terms with a p-value threshold of 0.01.
-    The figure is saved with the basename of the gene set and the name of the library.
-    If no terms meet the threshold, a message is printed, and no plot is generated.
     """
     # Filter results based on p-value threshold
     min_non_zero_pvalue = 1e-324
     filtered_results = enrichment_results[enrichment_results["Adjusted P-value"] < 0.01]
-    filtered_results.loc[filtered_results['Adjusted P-value'] == 0.0, 'Adjusted P-value'] = min_non_zero_pvalue
-    odds_ratio_std=filtered_results['Odds Ratio'].std()
-    filtered_results.loc[filtered_results['Combined Score'] == np.inf, 'Combined Score'] = 1e4   
-    #filtered_results.loc[filtered_results['Combined Score'] == np.inf, 'Combined Score'] = (-np.log10(min_non_zero_pvalue) * (np.log10(filtered_results.loc[filtered_results['Combined Score'] == np.inf, 'Odds Ratio']) / odds_ratio_std))
-    #filtered_results.loc[filtered_results['Combined Score'] == np.inf, 'Combined Score'] = (324.0* (np.log10(filtered_results.loc[filtered_results['Combined Score'] == np.inf, 'Odds Ratio']) / odds_ratio_std))
-
-
-
-    # Check if there are any significant terms
-    if filtered_results.empty:
+    
+    if len(filtered_results) == 0:
         sys.stderr.write(f"  No significant terms found for {basename} ({library}) to generate a dot plot.\n")
         return
+    
+    filtered_results = filtered_results.copy()
+    filtered_results.loc[filtered_results['Adjusted P-value'] == 0.0, 'Adjusted P-value'] = min_non_zero_pvalue
+    filtered_results.loc[filtered_results['Combined Score'] == np.inf, 'Combined Score'] = 1e4
 
-    # Select the top 20 terms (or fewer if there are not enough)
+    # Select the top 20 terms
     filtered_results_sorted = filtered_results.sort_values(by=["Adjusted P-value", "Odds Ratio"], ascending=[True, False])
     top_terms = filtered_results_sorted.head(20)
 
-    #print(top_terms.to_string())
-
-    # Save the figure in the output directory
+    # Save the figure
     output_file = os.path.join(output_dir, f"{basename}_{library}_dotplot.png")
-    gp.dotplot(
-        top_terms,
-        #title=f"Top {len(top_terms)} Enriched Terms for {basename} ({library})",  # Add a title
-        cutoff=0.01,  # P-value cutoff
-        top_term=20,  # Show only top 20 terms
-        size=5,  # Size of the dots
-        ofname=output_file,  # Save the plot directly to this file
-    )
-    sys.stderr.write(f"  Dot plot saved to {output_file}\n")
+    try:
+        gp.dotplot(
+            top_terms,
+            cutoff=0.01,
+            top_term=20,
+            size=5,
+            ofname=output_file,
+        )
+        sys.stderr.write(f"  Dot plot saved to {output_file}\n")
+    except Exception as e:
+        sys.stderr.write(f"  Warning: Could not generate dot plot: {e}\n")
 
 
 def plot_overlap_heatmap(overlap_matrix, gene_set_names, output_dir, library, aggregated_matrix):
     """
     Plots the overlap matrix as a heatmap with color and saves it as a PNG file.
-    The aggregated matrix is used as the annotation matrix.
     """
-    # Create a DataFrame for the overlap matrix with gene set names as row/column labels
+    # Create a DataFrame for the overlap matrix
     overlap_df = pd.DataFrame(overlap_matrix, index=gene_set_names, columns=gene_set_names)
 
-    # Convert the aggregated matrix to a DataFrame (skip the header row and column)
+    # Convert the aggregated matrix to a DataFrame
     annotation_matrix = pd.DataFrame(aggregated_matrix[1:, 1:], index=gene_set_names, columns=gene_set_names)
 
     # Plot the heatmap
     plt.figure(figsize=(8, 6))
     ax = sns.heatmap(
         overlap_df,
-        annot=annotation_matrix,  # Use the aggregated matrix as annotations
-        fmt="",  # Disable default formatting since we're providing custom text
-        cmap='OrRd',  # Color map
-        vmin=0,  # Minimum value for color scale
-        vmax=1,  # Maximum value for color scale
-        linewidths=0.5,  # Add lines between cells
+        annot=annotation_matrix,
+        fmt="",
+        cmap='OrRd',
+        vmin=0,
+        vmax=1,
+        linewidths=0.5,
         linecolor="black",
     )
 
-    # Customize the colorbar edge color
+    # Customize the colorbar
     if ax.collections[0].colorbar is not None:
         cbar = ax.collections[0].colorbar
-        cbar.outline.set_edgecolor('black')  # Set edge color of the colorbar
-        cbar.outline.set_linewidth(0.5)      # Set edge line width
+        cbar.outline.set_edgecolor('black')
+        cbar.outline.set_linewidth(0.5)
 
     plt.title(f"Overlap Matrix for {library}", fontsize=14, pad=20)
+    ax.tick_params(axis='x', which='both', pad=5)
+    ax.tick_params(axis='y', which='both', pad=5)
 
-    # Add padding to xticks and yticks
-    ax.tick_params(axis='x', which='both', pad=5)  # Add padding to x-axis tick labels
-    ax.tick_params(axis='y', which='both', pad=5)  # Add padding to y-axis tick labels
-
-    # Add axis lines
-    for spine in ax.spines.values():  # Enable all spines (borders)
+    for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_color("black")
         spine.set_linewidth(1)
 
-    # Save the heatmap to a file
     output_file = os.path.join(output_dir, f"overlap_heatmap_{library}.png")
     plt.savefig(output_file, bbox_inches="tight")
     plt.close()
@@ -149,55 +177,43 @@ def plot_overlap_heatmap(overlap_matrix, gene_set_names, output_dir, library, ag
 def aggregate_matrices(p_value_matrix, overlap_matrix, output_file, gene_set_names):
     """
     Aggregates the p-value and overlap matrices into a single matrix.
-    The diagonal elements are replaced with dashes, the upper triangle contains p-values
-    in exponential notation, and the lower triangle contains overlap values.
-    The final matrix is saved as a TSV file with gene set names in the initial row and column.
-    Returns the aggregated matrix for use in the heatmap.
     """
-    # Ensure the matrices are of the same shape
     assert p_value_matrix.shape == overlap_matrix.shape, "Matrices must be of the same shape"
     
-    # Create an empty matrix to store the aggregated results
     n = p_value_matrix.shape[0]
-    aggregated_matrix = np.empty((n + 1, n + 1), dtype=object)  # +1 for headers
+    aggregated_matrix = np.empty((n + 1, n + 1), dtype=object)
     
-    # Add headers for the gene sets
-    aggregated_matrix[0, 0] = "set"  # set top-left corner
+    aggregated_matrix[0, 0] = "set"
     for i in range(n):
-        aggregated_matrix[0, i + 1] = gene_set_names[i]  # Column headers
-        aggregated_matrix[i + 1, 0] = gene_set_names[i]  # Row headers
+        aggregated_matrix[0, i + 1] = gene_set_names[i]
+        aggregated_matrix[i + 1, 0] = gene_set_names[i]
     
-    # Fill the matrix
     for i in range(n):
         for j in range(n):
             if i == j:
-                aggregated_matrix[i + 1, j + 1] = '-'  # Replace diagonal with dash
+                aggregated_matrix[i + 1, j + 1] = '-'
             elif i < j:
-                # Upper triangle: p-value in exponential notation
                 aggregated_matrix[i + 1, j + 1] = f"{p_value_matrix[i, j]:.1e}"
             else:
-                # Lower triangle: overlap with 3 significant digits
                 aggregated_matrix[i + 1, j + 1] = f"{overlap_matrix[i, j]:.3f}"
     
-    # Save the aggregated matrix to a TSV file
     np.savetxt(output_file, aggregated_matrix, delimiter='\t', fmt='%s')
-
-    # Return the aggregated matrix for use in the heatmap
     return aggregated_matrix
 
 
 def calculate_overlap_matrix(input_files, library, output_dir, adjusted_p_threshold, background_terms):
     """
-    Calculates a 3x3 matrix with the fraction of overlapping significant terms and their statistical significance for a single library.
+    Calculates the overlap matrix for multiple gene sets (dynamic size).
     """
-    # Initialize the overlap fraction matrix and p-value matrix
-    overlap_fraction_matrix = np.zeros((3, 3), dtype=float)
-    p_value_matrix = np.zeros((3, 3), dtype=float)
+    n_sets = len(input_files)
+    
+    # Initialize matrices
+    overlap_fraction_matrix = np.zeros((n_sets, n_sets), dtype=float)
+    p_value_matrix = np.zeros((n_sets, n_sets), dtype=float)
 
-    # Read the significant terms for each gene set
+    # Read significant terms
     significant_terms = {}
     for i, input_file in enumerate(input_files):
-        # Get the basename of the input file (without extension)
         basename = os.path.splitext(os.path.basename(input_file))[0]
         file_name = f"{basename}_{library}.tsv"
         file_path = os.path.join(output_dir, file_name)
@@ -209,9 +225,9 @@ def calculate_overlap_matrix(input_files, library, output_dir, adjusted_p_thresh
             sys.stderr.write(f"Warning: File {file_path} not found.\n")
             significant_terms[f"gene_list_{i + 1}"] = set()
 
-    # Calculate the overlap fraction matrix and p-value matrix
-    for i in range(3):
-        for j in range(3):
+    # Calculate overlap and p-values
+    for i in range(n_sets):
+        for j in range(n_sets):
             set1 = significant_terms[f"gene_list_{i + 1}"]
             set2 = significant_terms[f"gene_list_{j + 1}"]
             overlap = len(set1.intersection(set2))
@@ -219,42 +235,32 @@ def calculate_overlap_matrix(input_files, library, output_dir, adjusted_p_thresh
             overlap_fraction = overlap / min_size if min_size > 0 else 0.0
             overlap_fraction_matrix[i, j] = overlap_fraction
 
-            # Calculate the hypergeometric survival function (p-value)
-            M = len(background_terms)  # Number of terms associated with the background genes
-            n = len(set1)              # Number of terms in set1
-            N = len(set2)              # Number of terms in set2
-            k = overlap                # Number of overlapping terms
-            p_value = hypergeom.sf(k - 1, M, n, N)  # Survival function (P(X >= k))
+            M = len(background_terms)
+            n = len(set1)
+            N = len(set2)
+            k = overlap
+            p_value = hypergeom.sf(k - 1, M, n, N)
             p_value_matrix[i, j] = p_value
 
-    # Get the basenames of the input files for gene set names
     gene_set_names = [os.path.splitext(os.path.basename(file))[0] for file in input_files]
-
-    # Aggregate the matrices and save the result
-    aggregated_output_file = os.path.join(output_dir, f"aggregated_matrix_{library}.tsv")
+    aggregated_output_file = os.path.join(output_dir, f"{basename}_aggregated_matrix_{library}.tsv")
     aggregated_matrix = aggregate_matrices(p_value_matrix, overlap_fraction_matrix, aggregated_output_file, gene_set_names)
     sys.stderr.write(f"Aggregated matrix saved to {aggregated_output_file}\n")
 
-    # Plot the overlap matrix as a heatmap
     plot_overlap_heatmap(overlap_fraction_matrix, gene_set_names, output_dir, library, aggregated_matrix)
 
 
 def get_background_terms(library, background_genes):
     """
-    Returns the set of terms associated with the genes in the background list.
+    Returns the set of terms associated with the background genes.
     """
-    # Use gseapy to get the library
-    library_file=os.path.join(f"{ndd_path}/libs", f"{library}.gmt")
+    library_file = os.path.join(f"{ndd_path}/libs", f"{library}.gmt")
     gene_sets = gp.get_library(library_file)
-    #gene_sets = gp.get_library(library)
-
-    # Convert background_genes to a set for faster membership checking
+    
     background_genes_set = set(background_genes)
-
-    # Collect all terms associated with the background genes
+    
     background_terms = set()
     for term, genes in gene_sets.items():
-        # Check if any gene in the term's gene list is in the background genes
         if any(gene in background_genes_set for gene in genes):
             background_terms.add(term)
 
@@ -263,34 +269,17 @@ def get_background_terms(library, background_genes):
 
 def generate_summary_table(input_files, libraries, output_dir, adjusted_p_threshold):
     """
-    Generates a summary table with significant terms for each library and the fraction of common terms for the intersections.
-    The set names are derived using the basename of the input files.
-    For individual sets, the total number of terms mapping to the set is added in parentheses.
-    For intersections, the fraction of overlapping terms (divided by the minimum number of significant terms) is shown,
-    along with the p-value of the overlap in parentheses. The background terms for each library are calculated as the union
-    of terms from the three sets.
-    
-    Parameters:
-    - input_files: List of input file paths for the three gene sets.
-    - libraries: List of libraries to analyze.
-    - output_dir: Directory where the enrichment results are stored.
-    - adjusted_p_threshold: Adjusted p-value threshold for significance.
-    
-    Returns:
-    - summary_df: A DataFrame containing the summary table.
+    Generates a summary table for any number of gene sets.
     """
-    # Extract set names from the input file paths using basename
+    n_sets = len(input_files)
     set_names = [os.path.splitext(os.path.basename(file))[0] for file in input_files]
-
-    # Initialize a list to store the summary data
+    
     summary_data = []
 
-    # Iterate over each library
     for library in libraries:
-        # Read the significant terms for each gene set
         significant_terms = {}
         total_terms = {}
-        all_terms = set()  # To store the union of terms from all three sets
+        all_terms = set()
 
         for i, input_file in enumerate(input_files):
             basename = os.path.splitext(os.path.basename(input_file))[0]
@@ -300,79 +289,57 @@ def generate_summary_table(input_files, libraries, output_dir, adjusted_p_thresh
                 df = pd.read_csv(file_path, sep="\t")
                 df_filtered = df[df["Adjusted P-value"] < adjusted_p_threshold]
                 significant_terms[f"gene_list_{i + 1}"] = set(df_filtered["Term"])
-                total_terms[f"gene_list_{i + 1}"] = len(df["Term"])  # Total terms in the set
-                all_terms.update(df["Term"])  # Add terms to the union
+                total_terms[f"gene_list_{i + 1}"] = len(df["Term"])
+                all_terms.update(df["Term"])
             else:
                 sys.stderr.write(f"Warning: File {file_path} not found.\n")
                 significant_terms[f"gene_list_{i + 1}"] = set()
                 total_terms[f"gene_list_{i + 1}"] = 0
 
-        # Get the significant terms and total terms for each gene set
-        set1_terms = significant_terms["gene_list_1"]
-        set2_terms = significant_terms["gene_list_2"]
-        set3_terms = significant_terms["gene_list_3"]
+        # Prepare row data
+        row_data = [library]
+        
+        # Add significant terms counts
+        for i in range(n_sets):
+            row_data.append(f"{len(significant_terms[f'gene_list_{i + 1}'])} ({total_terms[f'gene_list_{i + 1}']})")
+        
+        # Add pairwise overlaps
+        M = len(all_terms)
+        for i in range(n_sets):
+            for j in range(i + 1, n_sets):
+                set_i = significant_terms[f"gene_list_{i + 1}"]
+                set_j = significant_terms[f"gene_list_{j + 1}"]
+                intersection = len(set_i.intersection(set_j))
+                min_size = min(len(set_i), len(set_j))
+                fraction = intersection / min_size if min_size > 0 else 0
+                
+                p_value = hypergeom.sf(intersection - 1, M, len(set_i), len(set_j))
+                row_data.append(f"{fraction:.3f} ({p_value:.2e})")
+        
+        summary_data.append(row_data)
 
-        total_set1_terms = total_terms["gene_list_1"]
-        total_set2_terms = total_terms["gene_list_2"]
-        total_set3_terms = total_terms["gene_list_3"]
+    # Build column names dynamically
+    columns = ["Library"]
+    for i in range(n_sets):
+        columns.append(f"Significant Terms ({set_names[i]})")
+    for i in range(n_sets):
+        for j in range(i + 1, n_sets):
+            columns.append(f"Fraction Overlap ({set_names[i]} & {set_names[j]})")
 
-        # Calculate the fraction of overlapping terms and p-values for each intersection
-        intersection_12 = len(set1_terms.intersection(set2_terms))
-        intersection_13 = len(set1_terms.intersection(set3_terms))
-        intersection_23 = len(set2_terms.intersection(set3_terms))
-
-        # Calculate the fraction of overlapping terms (divided by the minimum number of significant terms)
-        fraction_12 = intersection_12 / min(len(set1_terms), len(set2_terms)) if min(len(set1_terms), len(set2_terms)) > 0 else 0
-        fraction_13 = intersection_13 / min(len(set1_terms), len(set3_terms)) if min(len(set1_terms), len(set3_terms)) > 0 else 0
-        fraction_23 = intersection_23 / min(len(set2_terms), len(set3_terms)) if min(len(set2_terms), len(set3_terms)) > 0 else 0
-
-        # Calculate p-values for the intersections using the hypergeometric test
-        M = len(all_terms)  # Total number of terms in the union of all three sets
-        n1 = len(set1_terms)  # Number of terms in set1
-        n2 = len(set2_terms)  # Number of terms in set2
-        n3 = len(set3_terms)  # Number of terms in set3
-
-        p_value_12 = hypergeom.sf(intersection_12 - 1, M, n1, n2)
-        p_value_13 = hypergeom.sf(intersection_13 - 1, M, n1, n3)
-        p_value_23 = hypergeom.sf(intersection_23 - 1, M, n2, n3)
-
-        # Append the data for the current library to the summary list
-        summary_data.append([
-            library,
-            f"{len(set1_terms)} ({total_set1_terms})",
-            f"{len(set2_terms)} ({total_set2_terms})",
-            f"{len(set3_terms)} ({total_set3_terms})",
-            f"{fraction_12:.3f} ({p_value_12:.2e})",
-            f"{fraction_13:.3f} ({p_value_13:.2e})",
-            f"{fraction_23:.3f} ({p_value_23:.2e})"
-        ])
-
-    # Create a DataFrame from the summary data
-    summary_df = pd.DataFrame(summary_data, columns=[
-        "Library",
-        f"Significant Terms ({set_names[0]})",
-        f"Significant Terms ({set_names[1]})",
-        f"Significant Terms ({set_names[2]})",
-        f"Fraction Overlap ({set_names[0]} & {set_names[1]})",
-        f"Fraction Overlap ({set_names[0]} & {set_names[2]})",
-        f"Fraction Overlap ({set_names[1]} & {set_names[2]})"
-    ])
-
+    summary_df = pd.DataFrame(summary_data, columns=columns)
     return summary_df
 
 
 def main():
     # Get the directory of the script
-    script_dir=Path(__file__).parent.parent
-    global ndd_path 
+    script_dir = Path(__file__).parent.parent
+    global ndd_path
     ndd_path = script_dir
 
-    # Set up argument parser
+    # Set up argument parser with NARG for positional arguments
     parser = argparse.ArgumentParser(description='Perform enrichment analysis on gene lists')
-    parser.add_argument('gene_list1', help='First gene list file')
-    parser.add_argument('gene_list2', help='Second gene list file')
-    parser.add_argument('gene_list3', help='Third gene list file')
-    parser.add_argument('background_list', help='Background gene list file')
+    parser.add_argument('gene_lists', nargs='+', 
+                       help='Gene list files (at least 2 required, last one is background)')
     parser.add_argument('--output_dir', default=f"{ndd_path}/results",
                        help='Output directory for results')
     parser.add_argument('--summary_file', default="summary_table.tsv",
@@ -381,18 +348,29 @@ def main():
                        help='Comma-separated list of libraries to use (default: all libraries)')
     args = parser.parse_args()
 
-    # Read gene lists from files
-    input_files = [args.gene_list1, args.gene_list2, args.gene_list3]
-    gene_lists = [read_gene_list(file) for file in input_files]
-    background_genes = read_gene_list(args.background_list)
+    # Check minimum number of positional arguments
+    if len(args.gene_lists) < 3:
+        sys.stderr.write("Error: At least 3 positional arguments required: 2 gene sets + 1 background\n")
+        sys.stderr.write("Usage: script.py gene_set1 gene_set2 [gene_set3 ...] background\n")
+        sys.exit(1)
 
-    # Print the number of genes in each list
-    for i, gene_list in enumerate(gene_lists):
-        sys.stderr.write(f"Number of genes in {os.path.basename(input_files[i])}: {len(gene_list)}\n")
+    # Separate gene lists and background
+    input_files = args.gene_lists[:-1]
+    background_file = args.gene_lists[-1]
 
-    # Define the gene set libraries
+    # Read gene lists
+    gene_lists = []
+    for file in input_files:
+        gene_list = read_gene_list(file)
+        gene_lists.append(gene_list)
+        sys.stderr.write(f"Number of genes in {os.path.basename(file)}: {len(gene_list)}\n")
+
+    background_genes = read_gene_list(background_file)
+    sys.stderr.write(f"Number of genes in background {os.path.basename(background_file)}: {len(background_genes)}\n")
+
+    # Define libraries
     if args.libraries:
-        libraries = [lib.strip() for lib in args.libraries.split(",")] 
+        libraries = [lib.strip() for lib in args.libraries.split(",")]
     else:
         libraries = [
             "GO_Biological_Process_2026",
@@ -406,25 +384,27 @@ def main():
             "SynGO_CC_2024",
             "MONDO_2026",
             "MONDO_GROUPS_2026"
-        ] 
+        ]
 
-    # Define the adjusted p-value threshold
     adjusted_p_threshold = 0.01
 
-    # Process each library one at a time
+    # Process each library
     for library in libraries:
-        # Get the terms associated with the background genes
         background_terms = get_background_terms(library, background_genes)
         sys.stderr.write(f"Number of terms associated with background genes in {library}: {len(background_terms)}\n")
 
-        # Perform enrichment analysis for the current library
         perform_enrichment(gene_lists, background_genes, library, args.output_dir, input_files)
+        
+        # Calculate overlap matrix if we have at least 2 gene sets
+        if len(input_files) >= 2:
+            calculate_overlap_matrix(input_files, library, args.output_dir, adjusted_p_threshold, background_terms)
 
     # Generate summary table
     summary_table = generate_summary_table(input_files, libraries, args.output_dir, adjusted_p_threshold)
     summary_output_path = os.path.join(args.output_dir, args.summary_file)
     summary_table.to_csv(summary_output_path, sep="\t", index=False)
     sys.stderr.write(f"Summary table saved to {summary_output_path}\n")
+
 
 if __name__ == "__main__":
     main()

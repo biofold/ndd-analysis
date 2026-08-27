@@ -12,6 +12,7 @@ dependencies:
   - scipy=1.15.2
   - pandas=2.2.3
   - matplotlib-base=3.10.1
+  - matplotlib-venn=1.1.2
   - seaborn=0.13.2
   - statsmodels=0.14.4
   - gseapy=1.1.6

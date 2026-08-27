@@ -341,7 +341,8 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             str(gene_files["set1"]),
             str(gene_files["set2"]),
             "--output_dir", str(results_dir),
-            "--libraries", supercandidate_libs_str
+            "--libraries", supercandidate_libs_str,
+            "--include-zero-scores"
         ], step_name="Identifying supercandidate genes", env_name=conda_env)
         
         # Step 3: Score distribution analysis

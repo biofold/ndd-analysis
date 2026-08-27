@@ -15,12 +15,12 @@ source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate ndd_analysis
 
 echo "- Enrichment Analysis"
-python3 run_ndd_analysis.py -c config.yml
+python3 run_ndd_analysis.py -c config.yml -o $results
 
 # MOE Score 4 and 5
-awk '{if ($2==4 || $2==5) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score45.txt
-awk '{if ($2==1 || $2==2 || $2==3) print $1}'  $prog_dir/results/supercandidate.tsv >$prog_dir/results/score13.txt
-python $prog_dir/scripts/1_enrichr_all.py $prog_dir/results/score45.txt $prog_dir/results/score13.txt  $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $prog_dir/results --summary_file summary_file_candidate.tsv
+awk '{if ($2==4 || $2==5) print $1}'  $results/supercandidate.tsv >$results/score45.txt
+awk '{if ($2==1 || $2==2 || $2==3) print $1}'  $results/supercandidate.tsv >$results/score13.txt
+python $prog_dir/scripts/1_enrichr_all.py $results/score45.txt $results/score13.txt  $prog_dir/data/gene_set1.txt $prog_dir/data/gene_all.txt --output_dir $prog_dir/results --summary_file summary_file_candidate.tsv
 
 #Cancer analysis
 echo "- Cancer Analysis"
@@ -41,13 +41,13 @@ cs1=`wc -l  $cancer_dir/cancer_gs1.txt |awk '{print $1}'`
 ncs1=`wc -l  $cancer_dir/noncancer_gs1.txt |awk '{print $1}'`
 s1=`wc -l $prog_dir/data/gene_set1.txt |awk '{print $1}'`
 
-python3 $prog_dir/scripts/aggregate_pvals.py $cancer_out/cancer_gs1_GO_Biological_Process_2026.tsv $cancer_out/noncancer_gs1_GO_Biological_Process_2026.tsv $prog_dir/results/gene_set1_GO_Biological_Process_2026.tsv $cs1 $ncs1 $s1 > $cancer_out/aggregate_set1.txt
+python3 $prog_dir/scripts/aggregate_pvals.py $cancer_out/cancer_gs1_GO_Biological_Process_2026.tsv $cancer_out/noncancer_gs1_GO_Biological_Process_2026.tsv $results/gene_set1_GO_Biological_Process_2026.tsv $cs1 $ncs1 $s1 > $cancer_out/aggregate_set1.txt
 
 cs2=`wc -l  $cancer_dir/cancer_gs2.txt |awk '{print $1}'`
 ncs2=`wc -l  $cancer_dir/noncancer_gs2.txt |awk '{print $1}'`
 s2=`wc -l $prog_dir/data/gene_set2.txt |awk '{print $1}'`
 
-python3 $prog_dir/scripts/aggregate_pvals.py $cancer_out/cancer_gs2_GO_Biological_Process_2026.tsv $cancer_out/noncancer_gs2_GO_Biological_Process_2026.tsv $prog_dir/results/gene_set2_GO_Biological_Process_2026.tsv $cs2 $ncs2 $s2 >$cancer_out/aggregate_set2.txt
+python3 $prog_dir/scripts/aggregate_pvals.py $cancer_out/cancer_gs2_GO_Biological_Process_2026.tsv $cancer_out/noncancer_gs2_GO_Biological_Process_2026.tsv $results/gene_set2_GO_Biological_Process_2026.tsv $cs2 $ncs2 $s2 >$cancer_out/aggregate_set2.txt
 
 echo "  3. Calculate fisher test"
 python $prog_dir/utils/fisher_cols.py $cancer_out/aggregate_set1.txt 3,4 5,6 >$cancer_out/cancer_compara_set1.txt

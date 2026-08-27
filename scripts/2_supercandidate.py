@@ -38,15 +38,36 @@ def get_genes_with_terms(enrichment_file, terms, p_value_filter=None):
     else:
         raise FileNotFoundError(f"File not found: {enrichment_file}")
 
+def get_all_genes_from_file(gene_file):
+    """Reads a gene list file and returns a set of all genes."""
+    if os.path.exists(gene_file):
+        with open(gene_file, 'r') as f:
+            genes = set()
+            for line in f:
+                line = line.strip()
+                # Skip comments and empty lines
+                if not line or line.startswith('#'):
+                    continue
+                # Take first column if multiple columns
+                gene = line.split('\t')[0].strip()
+                if gene:
+                    genes.add(gene)
+        return genes
+    else:
+        raise FileNotFoundError(f"File not found: {gene_file}")
+
 def get_basename(file_path):
     """Returns the basename of a file (without extension)."""
     return os.path.splitext(os.path.basename(file_path))[0]
 
-def match_terms(set1_file, set2_file, output_dir, p_value_threshold=0.01, p_value_filter=None, libraries=libs):
+def match_terms(set1_file, set2_file, output_dir, p_value_threshold=0.01, p_value_filter=None, libraries=libs, include_zero_scores=True):
     """Processes enrichment files and generates the output."""
     set1_basename = get_basename(set1_file)
     set2_basename = get_basename(set2_file)
     all_genes_with_terms = {}
+    
+    # Get all genes from set1 (to include genes with score 0)
+    all_set1_genes = get_all_genes_from_file(set1_file)
 
     for library in libraries:
         set1_enrichment_file = os.path.join(output_dir, f"{set1_basename}_{library}.tsv")
@@ -58,11 +79,17 @@ def match_terms(set1_file, set2_file, output_dir, p_value_threshold=0.01, p_valu
             if gene not in all_genes_with_terms:
                 all_genes_with_terms[gene] = set()
             all_genes_with_terms[gene].add(library)
-
+    
+    # Include genes with score 0 if requested
+    if include_zero_scores:
+        for gene in all_set1_genes:
+            if gene not in all_genes_with_terms:
+                all_genes_with_terms[gene] = set()  # Empty set = score 0
+    
     return pd.DataFrame({
         'Gene': list(all_genes_with_terms.keys()),
         'Score': [len(terms) for terms in all_genes_with_terms.values()],
-        'Terms': ['|'.join(terms) for terms in all_genes_with_terms.values()]
+        'Terms': ['|'.join(sorted(terms)) if terms else '' for terms in all_genes_with_terms.values()]
     })
 
 def save_matches(result_table, output_file):
@@ -83,13 +110,14 @@ def plot_scores(output_dir, plot_prefix):
     scf_scores = supercandidate_filtered_df['Score'].value_counts().sort_index()
 
     plt.figure(figsize=(10, 6))
-    plt.bar(sc_scores.index - 0.2, sc_scores.values, width=0.4, color='#1f77b4')
-    plt.bar(scf_scores.index + 0.2, scf_scores.values, width=0.4, color='#ff7f0e')
+    plt.bar(sc_scores.index - 0.2, sc_scores.values, width=0.4, color='#1f77b4', label='All')
+    plt.bar(scf_scores.index + 0.2, scf_scores.values, width=0.4, color='#ff7f0e', label='Filtered')
 
     plt.xlabel('Score')
     plt.ylabel('Number of Genes')
     plt.title('Score Distribution of Supercandidate Genes')
-    plt.xticks(range(1, max(sc_scores.index.max(), scf_scores.index.max()) + 1))
+    plt.xticks(range(0, max(sc_scores.index.max(), scf_scores.index.max()) + 1))
+    plt.legend()
     plt.grid(False)
 
     plot_file = os.path.join(output_dir, f'{plot_prefix}_scores.png')
@@ -97,7 +125,7 @@ def plot_scores(output_dir, plot_prefix):
     plt.close()
     sys.stderr.write(f"Bar plot saved to {plot_file}\n")
 
-def plot_cumulative_scores(output_dir, plot_prefix, threshold=1):
+def plot_cumulative_scores(output_dir, plot_prefix, threshold=0):
     """Generates a cumulative bar plot of the scores."""
     supercandidate_file = os.path.join(output_dir, 'supercandidate.tsv')
     supercandidate_filtered_file = os.path.join(output_dir, 'supercandidate_filtered.tsv')
@@ -112,13 +140,14 @@ def plot_cumulative_scores(output_dir, plot_prefix, threshold=1):
     scf_cumulative = scf_scores.sort_index(ascending=False).cumsum().sort_index()
 
     plt.figure(figsize=(10, 6))
-    plt.bar(sc_cumulative.index - 0.2, sc_cumulative.values, width=0.4, color='#1f77b4')
-    plt.bar(scf_cumulative.index + 0.2, scf_cumulative.values, width=0.4, color='#ff7f0e')
+    plt.bar(sc_cumulative.index - 0.2, sc_cumulative.values, width=0.4, color='#1f77b4', label='All')
+    plt.bar(scf_cumulative.index + 0.2, scf_cumulative.values, width=0.4, color='#ff7f0e', label='Filtered')
 
     plt.xlabel('Score')
     plt.ylabel('Cumulative Number of Genes')
     plt.title(f'Cumulative Score Distribution (Score ≥ {threshold})')
     plt.xticks(range(threshold, max(sc_cumulative.index.max(), scf_cumulative.index.max()) + 1))
+    plt.legend()
     plt.grid(False)
 
     plot_file = os.path.join(output_dir, f'{plot_prefix}_cumulative.png')
@@ -135,6 +164,10 @@ def main():
     parser.add_argument('--plot', help='Prefix for plot filenames (plots will be generated only if this is provided)')
     parser.add_argument('--libraries', type=str, default=None,
                        help='Comma-separated list of libraries to use (default: all libraries)')
+    parser.add_argument('--include-zero-scores', action='store_true', default=True,
+                       help='Include genes with score 0 (default: True)')
+    parser.add_argument('--exclude-zero-scores', action='store_true',
+                       help='Exclude genes with score 0')
     args = parser.parse_args()
 
     # Create output directory if it doesn't exist
@@ -150,13 +183,26 @@ def main():
                      'KEGG_2021_Human',
                      'Reactome_Pathways_2024']
 
+    # Determine whether to include zero scores
+    include_zero_scores = not args.exclude_zero_scores
+
     # Generate and save results
-    results_all = match_terms(args.set1_file, args.set2_file, args.output_dir, libraries=libs)
+    results_all = match_terms(args.set1_file, args.set2_file, args.output_dir, 
+                              libraries=libs, include_zero_scores=include_zero_scores)
     results_filter = match_terms(args.set1_file, args.set2_file, args.output_dir, 
-                                 p_value_threshold=0.01, libraries=libs)
+                                 p_value_threshold=0.01, p_value_filter=0.01,
+                                 libraries=libs, include_zero_scores=include_zero_scores)
 
     save_matches(results_all, os.path.join(args.output_dir, f'{args.output}.tsv'))
     save_matches(results_filter, os.path.join(args.output_dir, f'{args.output}_filtered.tsv'))
+
+    # Print summary statistics
+    print(f"Total genes in {args.output}.tsv: {len(results_all)}")
+    print(f"  Score distribution:")
+    print(results_all['Score'].value_counts().sort_index())
+    print(f"\nTotal genes in {args.output}_filtered.tsv: {len(results_filter)}")
+    print(f"  Score distribution:")
+    print(results_filter['Score'].value_counts().sort_index())
 
     # Generate plots only if --plot is provided
     if args.plot:

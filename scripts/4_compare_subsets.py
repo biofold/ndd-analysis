@@ -107,7 +107,9 @@ def compare_annotations(
         plot_horizontal_dendrogram(dist_matrix, labels, dendrogram_file)
     
     # Handle matrix output to file
+    
     if matrix_file:
+        labels.sort()
         with open(matrix_file, 'w') as f:
             # Write header
             f.write("Group\t" + "\t".join(labels) + "\n")
