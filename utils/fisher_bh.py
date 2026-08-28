@@ -111,6 +111,7 @@ def format_output(results, adjusted_p_values=None):
         output_parts = [result['original_line']]
         
         # Add Fisher test results
+        '''
         output_parts.extend([
             f"OR: {result['odds_ratio']:.3f}",
             f"p-valuel: {result['p_value_left']:.2e}",
@@ -118,6 +119,16 @@ def format_output(results, adjusted_p_values=None):
             f"p-value: {result['p_value']:.2e}",
             f"p-value2: {result['p_value_two_sided']:.2e}",
             f"Z: {result['z_score']:.2f}",
+            result['side']
+        ])
+        '''
+        output_parts.extend([
+            f"{result['odds_ratio']:.3f}",
+            f"{result['p_value_left']:.2e}",
+            f"{result['p_value_right']:.2e}",
+            f"{result['p_value']:.2e}",
+            f"{result['p_value_two_sided']:.2e}",
+            f"{result['z_score']:.2f}",
             result['side']
         ])
         

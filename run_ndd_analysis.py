@@ -380,8 +380,9 @@ def step_cancer_analysis(gene_files, output_dirs, conda_env):
     enrichment_figures_dir.mkdir(parents=True, exist_ok=True)
     
     set_operations = get_absolute_path("utils/set_operations.sh")
-    fisher_bh = get_absolute_path("utils/fisher_bh.py")
-    script_aggregate = get_absolute_path("utils/aggregate_pvals.py")
+    #fisher_bh = get_absolute_path("utils/fisher_bh.py")
+    #script_aggregate = get_absolute_path("utils/aggregate_pvals.py")
+    run_cancer_comparison = get_absolute_path("utils/run_cancer_comparison.sh")
     script1 = get_absolute_path("scripts/1_enrichr_all.py")
     
     cancer_file = gene_files.get("cancer_file")
@@ -451,49 +452,47 @@ def step_cancer_analysis(gene_files, output_dirs, conda_env):
         if move_file(png_file, enrichment_figures_dir):
             print(f"  ✓ Moved: {png_file.name}", file=sys.stderr)
     
-    # Aggregate cancer results
+    # Aggregate cancer results and run Fisher test with BH correction
     cs1 = sum(1 for _ in open(cancer_dir / "cancer_gs1.txt"))
     ncs1 = sum(1 for _ in open(cancer_dir / "noncancer_gs1.txt"))
     s1 = sum(1 for _ in open(gene_files["set1"]))
-    
-    with open(cancer_out / "aggregate_set1.txt", 'w') as f:
-        subprocess.run(
-            [get_conda_python(conda_env), str(script_aggregate),
-             str(cancer_out / "cancer_gs1_GO_Biological_Process_2026.tsv"),
-             str(cancer_out / "noncancer_gs1_GO_Biological_Process_2026.tsv"),
-             str(results_dir / "gene_set1_GO_Biological_Process_2026.tsv"),
-             str(cs1), str(ncs1), str(s1)],
-            stdout=f, check=True
-        )
-    
+
     cs2 = sum(1 for _ in open(cancer_dir / "cancer_gs2.txt"))
     ncs2 = sum(1 for _ in open(cancer_dir / "noncancer_gs2.txt"))
     s2 = sum(1 for _ in open(gene_files["set2"]))
-    
-    with open(cancer_out / "aggregate_set2.txt", 'w') as f:
-        subprocess.run(
-            [get_conda_python(conda_env), str(script_aggregate),
-             str(cancer_out / "cancer_gs2_GO_Biological_Process_2026.tsv"),
-             str(cancer_out / "noncancer_gs2_GO_Biological_Process_2026.tsv"),
-             str(results_dir / "gene_set2_GO_Biological_Process_2026.tsv"),
-             str(cs2), str(ncs2), str(s2)],
-            stdout=f, check=True
-        )
-    
-    # Fisher test and BH correction
-    with open(cancer_out / "cancer_compara_set1_adj.txt", 'w') as f:
-        subprocess.run(
-            [get_conda_python(conda_env), str(fisher_bh),
-             str(cancer_out / "aggregate_set1.txt"), "3,4", "5,6"],
-            stdout=f, check=True
-        )
-    
-    with open(cancer_out / "cancer_compara_set2_adj.txt", 'w') as f:
-        subprocess.run(
-            [get_conda_python(conda_env), str(fisher_bh),
-             str(cancer_out / "aggregate_set2.txt"), "3,4", "5,6"],
-            stdout=f, check=True
-        )
+
+    # Create processed output directory
+    processed_dir = cancer_out
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    # Run cancer comparison for set 1
+    cmd_set1 = (
+        f"{run_cancer_comparison} "
+        f"--cancer-file {cancer_out / 'cancer_gs1_GO_Biological_Process_2026.tsv'} "
+        f"--noncancer-file {cancer_out / 'noncancer_gs1_GO_Biological_Process_2026.tsv'} "
+        f"--set-file {results_dir / 'gene_set1_GO_Biological_Process_2026.tsv'} "
+        f"--n-cancer {cs1} "
+        f"--n-noncancer {ncs1} "
+        f"--n-set {s1} "
+        f"--output-file {processed_dir / 'cancer_compara_set1_adj.txt'}"
+    )
+    print(f"Running cancer comparison set1: {cmd_set1}", file=sys.stderr)
+    run_bash_command(cmd_set1, step_name="Cancer comparison analysis (set1)")
+
+    # Run cancer comparison for set 2
+    cmd_set2 = (
+        f"{run_cancer_comparison} "
+        f"--cancer-file {cancer_out / 'cancer_gs2_GO_Biological_Process_2026.tsv'} "
+        f"--noncancer-file {cancer_out / 'noncancer_gs2_GO_Biological_Process_2026.tsv'} "
+        f"--set-file {results_dir / 'gene_set2_GO_Biological_Process_2026.tsv'} "
+        f"--n-cancer {cs2} "
+        f"--n-noncancer {ncs2} "
+        f"--n-set {s2} "
+        f"--output-file {processed_dir / 'cancer_compara_set2_adj.txt'}"
+    )
+    print(f"Running cancer comparison set2: {cmd_set2}", file=sys.stderr)
+    run_bash_command(cmd_set2, step_name="Cancer comparison analysis (set2)")
+
 
 def step_documentation(gene_files, output_dirs, conda_env):
     """Step 4: Generate documentation - scatter plots, tables, figures, and organize files"""
@@ -770,6 +769,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- `supfile_2_curated_enrichment.xlsx`: Curated set enrichment results\n")
         f.write("- `supfile_3_candidate_enrichment.xlsx`: Candidate set enrichment results\n")
         f.write("- `supfile_4_no_evidence_enrichment.xlsx`: No evidence set enrichment results\n")
+        f.write("- `supfile_5_cancer_compara.xlsx`: Comparison of significance of cancer and non cancer gene functions \n")
         f.write("- `ndd-report.xlsx`: Complete report with all tables\n\n")
         f.write("## Key Files\n")
         f.write("- `supercandidate.tsv`: Supercandidate genes\n")
@@ -885,11 +885,43 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
                 sys.stderr.write(f"Warning: Could not generate {gene_set['name']} Excel: {e}\n")
         else:
             sys.stderr.write(f"Warning: No enrichment files found for {gene_set['name']}\n")
-    
+
     # ============================================
-    # Excel 5: NDD Report - All tables
+    # Excel 5: Cancer Compara - All tables
     # ============================================
-    print("\n--- Excel 5: NDD Report ---", file=sys.stderr)
+
+    print("\n--- Excel 5: Cancer compara ---", file=sys.stderr)
+
+    excel5_files = []   
+ 
+    if docs_dir.exists():
+        cancer_compara1 = docs_dir / "cancer_compara_set1_adj.txt"
+        if cancer_compara1.exists():
+            excel5_files.append(f"{cancer_compara1}:Cancer_Comparison_Set1")
+
+        cancer_compara2 = docs_dir / "cancer_compara_set2_adj.txt"
+        if cancer_compara2.exists():
+            excel5_files.append(f"{cancer_compara2}:Cancer_Comparison_Set2")
+
+    if excel5_files:
+        excel5_output = docs_dir / "supfile_5_cancer_compara.xlsx"
+        cmd = [get_conda_python(conda_env), str(tsv2excel_script), str(excel5_output)]
+        cmd.extend(excel5_files)
+
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, check=True)
+            print(f"  ✓ Cancer Compara Excel saved to: {excel5_output}", file=sys.stderr)
+            print(f"    Total sheets included: {len(excel5_files)}", file=sys.stderr)
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write(f"Warning: Could not generate Cancer Compara Excel: {e}\n")
+    else:
+        sys.stderr.write("Warning: No files found to include in Cancer Compara\n")
+
+    # ============================================
+    # Excel 6: NDD Report - All tables
+    # ============================================
+    print("\n--- Excel 6: NDD Report ---", file=sys.stderr)
     
     report_files = []
     
@@ -928,14 +960,6 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
         dist_file = docs_dir / "dist_mondo_supercandidate.txt"
         if dist_file.exists():
             report_files.append(f"{dist_file}:Score_Distribution")
-        
-        cancer_compara1 = docs_dir / "cancer_compara_set1_adj.txt"
-        if cancer_compara1.exists():
-            report_files.append(f"{cancer_compara1}:Cancer_Comparison_Set1")
-        
-        cancer_compara2 = docs_dir / "cancer_compara_set2_adj.txt"
-        if cancer_compara2.exists():
-            report_files.append(f"{cancer_compara2}:Cancer_Comparison_Set2")
     '''
     
     if report_files:
