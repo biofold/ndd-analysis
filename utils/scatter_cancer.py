@@ -5,6 +5,37 @@ from matplotlib.colors import LinearSegmentedColormap
 import argparse
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+def get_ticks_from_max(data_max, padding_fraction=1/5.):
+    """Generate ticks based on data maximum using interval dictionary"""
+    # Define intervals as (threshold, interval) pairs
+    intervals = [
+        (10, 2),    # ≤ 10: interval of 2
+        (50, 5),    # ≤ 50: interval of 5
+        (100, 10),  # ≤ 100: interval of 10
+        (200, 25),  # ≤ 200: interval of 25
+        (500, 50),  # ≤ 500: interval of 50
+        (float('inf'), 100)  # > 500: interval of 100
+    ]
+    
+    # Find appropriate interval
+    for threshold, interval in intervals:
+        if data_max <= threshold:
+            tick_interval = interval
+            break
+
+    # Generate ticks
+    vmax = int(np.ceil(data_max / tick_interval) * tick_interval)
+    ticks = np.arange(0, vmax + tick_interval, tick_interval)
+    
+    # Calculate padding as 1/5 of tick interval
+    padding = tick_interval * padding_fraction
+    
+    # Calculate axis limits
+    x_min, x_max = -padding, vmax + padding
+    y_min, y_max = -padding, vmax + padding
+    
+    return ticks, (x_min, x_max, y_min, y_max)    
+
 def create_scatter_plot(file_path, x_col, y_col, color_col, output_file=None):
     """
     Create a square scatter plot with:
@@ -34,15 +65,19 @@ def create_scatter_plot(file_path, x_col, y_col, color_col, output_file=None):
     y = df.iloc[:, y_col]
     colors = df.iloc[:, color_col]
     
+    # definition of the tick_interval
+    data_max = max(np.max(x), np.max(y))
+    ticks, (x_min, x_max, y_min, y_max) = get_ticks_from_max(data_max) 
+     
     # Create custom red-white-blue colormap centered at 2
     cmap = LinearSegmentedColormap.from_list('rwb', [
         (0.0, 'red'),          # 0 = red
-        (2/30, 'white'),       # 2 = white
+        (2/x_max, 'white'),       # 2 = white
         (1.0, 'blue')          # 30 = blue
     ])
     
     # Set color scale from 0 to 30
-    norm = plt.Normalize(vmin=0, vmax=30)
+    norm = plt.Normalize(vmin=0, vmax=x_max)
     
     # Create square figure with adjusted width to accommodate colorbar
     fig, ax = plt.subplots(figsize=(8.5, 8))
@@ -69,17 +104,13 @@ def create_scatter_plot(file_path, x_col, y_col, color_col, output_file=None):
     
     # Add colorbar with same height as plot
     cbar = plt.colorbar(sc, cax=cax)
-    cbar.set_ticks(np.linspace(0, 30, 7))
+    cbar.set_ticks(ticks)
     cbar.ax.tick_params(labelsize=12, width=1.5)  # Increased colorbar tick label size
     #for label in cbar.ax.get_yticklabels():
     #    label.set_fontweight('bold')  # Make text bold
     
     # Set equal aspect ratio for square plot
     ax.set_aspect('equal', 'box')
-    
-    # Calculate axis limits with -1/+1 padding
-    x_min, x_max = -1, 31
-    y_min, y_max = -1, 31
     
     # Set axis limits
     ax.set_xlim(x_min, x_max)
