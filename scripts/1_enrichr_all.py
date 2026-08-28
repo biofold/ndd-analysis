@@ -206,7 +206,11 @@ def calculate_overlap_matrix(input_files, library, output_dir, adjusted_p_thresh
     Calculates the overlap matrix for multiple gene sets (dynamic size).
     """
     n_sets = len(input_files)
-    
+
+    if n_sets < 2:
+        sys.stderr.write(f"Skipping overlap matrix for {library}: only 1 gene set provided.\n")
+        return
+ 
     # Initialize matrices
     overlap_fraction_matrix = np.zeros((n_sets, n_sets), dtype=float)
     p_value_matrix = np.zeros((n_sets, n_sets), dtype=float)
@@ -243,7 +247,8 @@ def calculate_overlap_matrix(input_files, library, output_dir, adjusted_p_thresh
             p_value_matrix[i, j] = p_value
 
     gene_set_names = [os.path.splitext(os.path.basename(file))[0] for file in input_files]
-    aggregated_output_file = os.path.join(output_dir, f"{basename}_aggregated_matrix_{library}.tsv")
+    set_names_joined = "_vs_".join(os.path.splitext(os.path.basename(file))[0] for file in input_files)
+    aggregated_output_file = os.path.join(output_dir, f"{set_names_joined}_aggregated_matrix_{library}.tsv")
     aggregated_matrix = aggregate_matrices(p_value_matrix, overlap_fraction_matrix, aggregated_output_file, gene_set_names)
     sys.stderr.write(f"Aggregated matrix saved to {aggregated_output_file}\n")
 
@@ -269,7 +274,7 @@ def get_background_terms(library, background_genes):
 
 def generate_summary_table(input_files, libraries, output_dir, adjusted_p_threshold):
     """
-    Generates a summary table for any number of gene sets.
+    Generates a summary table for any number of gene sets (including 1).
     """
     n_sets = len(input_files)
     set_names = [os.path.splitext(os.path.basename(file))[0] for file in input_files]
@@ -303,18 +308,19 @@ def generate_summary_table(input_files, libraries, output_dir, adjusted_p_thresh
         for i in range(n_sets):
             row_data.append(f"{len(significant_terms[f'gene_list_{i + 1}'])} ({total_terms[f'gene_list_{i + 1}']})")
         
-        # Add pairwise overlaps
-        M = len(all_terms)
-        for i in range(n_sets):
-            for j in range(i + 1, n_sets):
-                set_i = significant_terms[f"gene_list_{i + 1}"]
-                set_j = significant_terms[f"gene_list_{j + 1}"]
-                intersection = len(set_i.intersection(set_j))
-                min_size = min(len(set_i), len(set_j))
-                fraction = intersection / min_size if min_size > 0 else 0
-                
-                p_value = hypergeom.sf(intersection - 1, M, len(set_i), len(set_j))
-                row_data.append(f"{fraction:.3f} ({p_value:.2e})")
+        # Add pairwise overlaps (ONLY IF n_sets >= 2)
+        if n_sets >= 2:
+            M = len(all_terms)
+            for i in range(n_sets):
+                for j in range(i + 1, n_sets):
+                    set_i = significant_terms[f"gene_list_{i + 1}"]
+                    set_j = significant_terms[f"gene_list_{j + 1}"]
+                    intersection = len(set_i.intersection(set_j))
+                    min_size = min(len(set_i), len(set_j))
+                    fraction = intersection / min_size if min_size > 0 else 0
+                    
+                    p_value = hypergeom.sf(intersection - 1, M, len(set_i), len(set_j))
+                    row_data.append(f"{fraction:.3f} ({p_value:.2e})")
         
         summary_data.append(row_data)
 
@@ -322,9 +328,12 @@ def generate_summary_table(input_files, libraries, output_dir, adjusted_p_thresh
     columns = ["Library"]
     for i in range(n_sets):
         columns.append(f"Significant Terms ({set_names[i]})")
-    for i in range(n_sets):
-        for j in range(i + 1, n_sets):
-            columns.append(f"Fraction Overlap ({set_names[i]} & {set_names[j]})")
+    
+    # Only add overlap columns if n_sets >= 2
+    if n_sets >= 2:
+        for i in range(n_sets):
+            for j in range(i + 1, n_sets):
+                columns.append(f"Fraction Overlap ({set_names[i]} & {set_names[j]})")
 
     summary_df = pd.DataFrame(summary_data, columns=columns)
     return summary_df
@@ -349,8 +358,8 @@ def main():
     args = parser.parse_args()
 
     # Check minimum number of positional arguments
-    if len(args.gene_lists) < 3:
-        sys.stderr.write("Error: At least 3 positional arguments required: 2 gene sets + 1 background\n")
+    if len(args.gene_lists) < 2:
+        sys.stderr.write("Error: At least 2 positional arguments required: 1 gene sets + 1 background\n")
         sys.stderr.write("Usage: script.py gene_set1 gene_set2 [gene_set3 ...] background\n")
         sys.exit(1)
 
