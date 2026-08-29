@@ -131,8 +131,8 @@ END {
 
     # Print rows
     for (score = 5; score >= 0; score--) {
-        mondo_pct = (total_mondo > 0) ? (mondo_count[score] / total_mondo) * 100 : 0
-        cancer_pct = (total_cancer > 0) ? (cancer_count[score] / total_cancer) * 100 : 0
+        mondo_pct = (total_mondo > 0) ? (mondo_count[score] / total_count[score]) * 100 : 0
+        cancer_pct = (total_cancer > 0) ? (cancer_count[score] / total_count[score]) * 100 : 0
         total_pct = (total_all > 0) ? (total_count[score] / total_all) * 100 : 0
 
         printf "%-10s\t%-25s\t%-25s\t%-25s\n",
@@ -142,11 +142,14 @@ END {
             sprintf("%s (%.1f%%)", format_number(total_count[score]), total_pct)
     }
 
+    mondo_pct = (total_mondo > 0) ? (total_mondo / total_all) * 100 : 0
+    cancer_pct = (total_cancer > 0) ? (total_cancer / total_all) * 100 : 0
+
     # Print total row (sum of all rows)
     printf "%-10s\t%-25s\t%-25s\t%-25s\n",
         "Total",
-        sprintf("%s (100.0%%)", format_number(total_mondo)),
-        sprintf("%s (100.0%%)", format_number(total_cancer)),
-        sprintf("%s (100.0%%)", format_number(total_all))
+        sprintf("%s (%.1f%%)", format_number(total_mondo), mondo_pct),
+        sprintf("%s (%.1f%%)", format_number(total_cancer), cancer_pct),
+        sprintf("%s", format_number(total_all))
 }
 ' "$SUPERCANDIDATE_FILE"

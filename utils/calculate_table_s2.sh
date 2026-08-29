@@ -126,11 +126,12 @@ BEGIN {
 }
 
 END {
-    # Print header
+    # Print transposed header
+    # Rows: MONDO Genes, Cancer Genes, Total
+    # Columns: Genes, curated, candidate, no_evidence, Total
     printf "%-15s\t%-25s\t%-25s\t%-25s\t%-25s\n", "Genes", "curated", "candidate", "no_evidence", "Total"
-    #printf "%-15s\t%-25s\t%-25s\t%-25s\t%-25s\n", "-----", "-------", "---------", "-----------", "-----"
 
-    # MONDO row (percentages are relative to column totals, i.e., the Total row)
+    # MONDO row (percentages relative to classification totals - same as original)
     mondo_curated_pct = (count["curated", "total"] > 0) ? (count["curated", "mondo"] / count["curated", "total"]) * 100 : 0
     mondo_candidate_pct = (count["candidate", "total"] > 0) ? (count["candidate", "mondo"] / count["candidate", "total"]) * 100 : 0
     mondo_no_evidence_pct = (count["no_evidence", "total"] > 0) ? (count["no_evidence", "mondo"] / count["no_evidence", "total"]) * 100 : 0
@@ -143,7 +144,7 @@ END {
         sprintf("%s (%.1f%%)", format_number(count["no_evidence", "mondo"]), mondo_no_evidence_pct),
         sprintf("%s (%.1f%%)", format_number(total_mondo), mondo_total_pct)
 
-    # Cancer row
+    # Cancer row (percentages relative to classification totals - same as original)
     cancer_curated_pct = (count["curated", "total"] > 0) ? (count["curated", "cancer"] / count["curated", "total"]) * 100 : 0
     cancer_candidate_pct = (count["candidate", "total"] > 0) ? (count["candidate", "cancer"] / count["candidate", "total"]) * 100 : 0
     cancer_no_evidence_pct = (count["no_evidence", "total"] > 0) ? (count["no_evidence", "cancer"] / count["no_evidence", "total"]) * 100 : 0
@@ -157,11 +158,15 @@ END {
         sprintf("%s (%.1f%%)", format_number(total_cancer), cancer_total_pct)
 
     # Total row
+    curated_pct = (total_all > 0) ? (count["curated", "total"] / total_all) * 100 : 0
+    candidate_pct = (total_all > 0) ? (count["candidate", "total"] / total_all) * 100 : 0
+    no_evidence_pct = (total_all > 0) ? (count["no_evidence", "total"] / total_all) * 100 : 0
+
     printf "%-15s\t%-25s\t%-25s\t%-25s\t%-25s\n",
         "Total",
-        sprintf("%s (100.0%%)", format_number(count["curated", "total"])),
-        sprintf("%s (100.0%%)", format_number(count["candidate", "total"])),
-        sprintf("%s (100.0%%)", format_number(count["no_evidence", "total"])),
-        sprintf("%s (100.0%%)", format_number(total_all))
+        sprintf("%s (%.1f%%)", format_number(count["curated", "total"]), curated_pct),
+        sprintf("%s (%.1f%%)", format_number(count["candidate", "total"]), candidate_pct),
+        sprintf("%s (%.1f%%)", format_number(count["no_evidence", "total"]), no_evidence_pct),
+        sprintf("%s", format_number(total_all))
 }
 ' "$COMPLETE_GENES"

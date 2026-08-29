@@ -50,7 +50,7 @@ def create_scatter_plot(file_path, x_col, y_col, color_col, output_file=None):
     
     # Read the file
     try:
-        df = pd.read_csv(file_path, sep=None, engine='python', header=None)
+        df = pd.read_csv(file_path, sep=None, engine='python', header=0)
     except Exception as e:
         print(f"Error reading file: {e}")
         return
@@ -61,9 +61,12 @@ def create_scatter_plot(file_path, x_col, y_col, color_col, output_file=None):
         return
     
     # Extract data
-    x = df.iloc[:, x_col]
-    y = df.iloc[:, y_col]
-    colors = df.iloc[:, color_col]
+    # x = df.iloc[:, x_col]
+    # y = df.iloc[:, y_col]
+    # colors = df.iloc[:, color_col]
+    x = -np.log10(df.iloc[:, x_col])
+    y = -np.log10(df.iloc[:, y_col])
+    colors = -np.log10(df.iloc[:, color_col])
     
     # definition of the tick_interval
     data_max = max(np.max(x), np.max(y))

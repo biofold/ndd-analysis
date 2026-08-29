@@ -2,15 +2,22 @@
 """
 Convert multiple delimited files to an Excel file with each file as a separate sheet.
 Sheet names can be derived from the filenames (without extension) or specified explicitly.
-Automatically detects and converts data types to avoid "number stored as text" issues.
+
+Input format: file.tsv[:sheet_name[:header_rows]]
+
+Where:
+  file.tsv     - Path to input file
+  sheet_name   - Optional: Name for the Excel sheet (default: filename without extension)
+  header_rows  - Optional: Number of header rows
+                 0 = no header (default)
+                 N = number of rows to treat as header (e.g., 1 = first row is header)
 
 Usage:
-  python tsv2excel.py output.xlsx file1.tsv file2.tsv
-  python tsv2excel.py output.xlsx --header file1.tsv file2.tsv
-  python tsv2excel.py output.xlsx --separator ',' file1.csv file2.csv
-  python tsv2excel.py output.xlsx --quotechar '"' file1.tsv file2.tsv
-  python tsv2excel.py output.xlsx --header --skip_first_column file1.tsv file2.tsv
-  python tsv2excel.py output.xlsx --no-type-detection file1.tsv file2.tsv
+  python tsv2excel.py output.xlsx file1.tsv
+  python tsv2excel.py output.xlsx file1.tsv:MySheet
+  python tsv2excel.py output.xlsx file1.tsv:MySheet:1
+  python tsv2excel.py output.xlsx file1.tsv:MySheet:0
+  python tsv2excel.py output.xlsx --separator tab file1.tsv:Sheet1:1
 """
 
 import sys
@@ -24,15 +31,30 @@ import re
 
 def parse_input_spec(input_spec):
     """
-    Parse input specification to extract file path and optional sheet name.
-    Format: file.tsv or file.tsv:sheet_name or file.tsv:sheet_name:header
+    Parse input specification to extract file path, sheet name, and header rows.
+    Format: file.tsv[:sheet_name[:header_rows]]
+    
+    header_rows:
+      0 = no header (default)
+      N = number of rows to treat as header (e.g., 1 = first row is header)
     """
     parts = input_spec.split(':')
     file_path = parts[0]
-    sheet_name = parts[1].strip() if len(parts) > 1 and parts[1].strip() else None
-    has_header = parts[2].strip().lower() in ['header', 'true', 'yes', '1'] if len(parts) > 2 else None
     
-    return file_path, sheet_name, has_header
+    sheet_name = None
+    header_rows = 0  # Default: no header
+    
+    if len(parts) > 1 and parts[1].strip():
+        sheet_name = parts[1].strip()
+    
+    if len(parts) > 2 and parts[2].strip():
+        try:
+            header_rows = int(parts[2].strip())
+        except ValueError:
+            print(f"Warning: Invalid header_rows value '{parts[2]}'. Using 0 (no header).", file=sys.stderr)
+            header_rows = 0
+    
+    return file_path, sheet_name, header_rows
 
 
 def sanitize_sheet_name(name, max_length=31):
@@ -52,107 +74,103 @@ def sanitize_sheet_name(name, max_length=31):
     return name
 
 
-def get_value_type(value):
+def get_separator(separator_arg):
     """
-    Determine the type of a value: 'numeric', 'text', or 'empty'
+    Convert separator argument to actual separator character.
     """
-    if value is None or (isinstance(value, str) and value.strip() == ''):
-        return 'empty'
+    if separator_arg is None:
+        return None
     
-    value_str = str(value).strip()
+    separator_map = {
+        'tab': '\t',
+        '\\t': '\t',
+        '\t': '\t',
+        'comma': ',',
+        ',': ',',
+        'semicolon': ';',
+        ';': ';',
+        'space': ' ',
+        ' ': ' ',
+        'pipe': '|',
+        '|': '|'
+    }
     
-    # Check if numeric
-    numeric_pattern = re.compile(r'^[-+]?[\d]*\.?[\d]+(?:[eE][-+]?\d+)?$')
-    if numeric_pattern.match(value_str):
-        return 'numeric'
+    # Try direct mapping
+    if separator_arg in separator_map:
+        return separator_map[separator_arg]
     
-    # Check if boolean
-    bool_values = {'true', 'false', 'yes', 'no', 'y', 'n', '1', '0'}
-    if value_str.lower() in bool_values:
-        return 'boolean'
+    # Handle escaped characters
+    if separator_arg.startswith('\\') and len(separator_arg) == 2:
+        escape_map = {
+            '\\t': '\t',
+            '\\n': '\n',
+            '\\r': '\r',
+            '\\s': ' '
+        }
+        return escape_map.get(separator_arg, separator_arg)
     
-    return 'text'
+    # If it's a single character, use it directly
+    if len(separator_arg) == 1:
+        return separator_arg
+    
+    return separator_arg
 
 
-def looks_like_header(first_row, second_row):
+def read_file_with_separator(file_path, separator):
     """
-    Determine if the first row looks like a header by comparing types with the second row.
-    Generic approach: if the type pattern of the first row differs from the second row,
-    the first row is likely a header.
-    """
-    if not first_row or not second_row:
-        return False
-    
-    # Get types for each field in both rows
-    first_types = [get_value_type(v) for v in first_row]
-    second_types = [get_value_type(v) for v in second_row]
-    
-    # Remove 'empty' types for comparison
-    first_non_empty = [t for t in first_types if t != 'empty']
-    second_non_empty = [t for t in second_types if t != 'empty']
-    
-    if not first_non_empty or not second_non_empty:
-        return False
-    
-    # Check if type patterns are different
-    type_pattern_differs = first_non_empty != second_non_empty
-    
-    # Check specific cases:
-    
-    # Case 1: First row all text, second row has some numeric/boolean
-    first_all_text = all(t == 'text' for t in first_non_empty)
-    second_has_numeric = any(t in ['numeric', 'boolean'] for t in second_non_empty)
-    
-    if first_all_text and second_has_numeric:
-        return True
-    
-    # Case 2: First row has different types than second row
-    if type_pattern_differs:
-        # Count type occurrences
-        first_text_count = sum(1 for t in first_non_empty if t == 'text')
-        first_numeric_count = sum(1 for t in first_non_empty if t == 'numeric')
-        second_text_count = sum(1 for t in second_non_empty if t == 'text')
-        second_numeric_count = sum(1 for t in second_non_empty if t == 'numeric')
-        
-        # If first row is mostly text and second row has more numbers
-        if first_text_count > first_numeric_count and second_numeric_count > first_numeric_count:
-            return True
-        
-        # If first row is mostly text and second row is also text but different pattern
-        if first_text_count == len(first_non_empty) and second_text_count == len(second_non_empty):
-            # Both all text - check if they look different in some way
-            # Headers tend to be shorter and have no special characters
-            first_avg_length = np.mean([len(str(v).strip()) for v in first_row if str(v).strip()])
-            second_avg_length = np.mean([len(str(v).strip()) for v in second_row if str(v).strip()])
-            
-            # Headers are typically shorter
-            if first_avg_length < second_avg_length * 0.7:
-                return True
-    
-    # Case 3: First row has some text, second row all text
-    # This is ambiguous - could be header or data
-    # Only consider as header if first row has very short values
-    if first_all_text and all(t == 'text' for t in second_non_empty):
-        first_avg_length = np.mean([len(str(v).strip()) for v in first_row if str(v).strip()])
-        second_avg_length = np.mean([len(str(v).strip()) for v in second_row if str(v).strip()])
-        
-        # If first row values are much shorter, likely header
-        if first_avg_length < second_avg_length * 0.5:
-            return True
-    
-    return False
-
-
-def detect_separator_and_structure(file_path):
-    """
-    Detect the separator and structure of the file.
-    Returns: (separator, has_header, num_columns)
+    Read file with a specific separator.
     """
     lines = []
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.rstrip('\n')
+                if line.strip() or separator in line:
+                    lines.append(line)
+    except UnicodeDecodeError:
+        with open(file_path, 'r', encoding='latin1') as f:
+            for line in f:
+                line = line.rstrip('\n')
+                if line.strip():
+                    lines.append(line)
+    
+    if not lines:
+        return pd.DataFrame()
+    
+    # Parse lines using the specified separator
+    parsed_lines = []
+    for line in lines:
+        if separator == ' ':
+            fields = [f for f in line.split(' ') if f != '']
+        else:
+            fields = line.split(separator)
+        parsed_lines.append(fields)
+    
+    # Find max columns
+    max_cols = max(len(fields) for fields in parsed_lines)
+    
+    # Pad shorter lines
+    for i, fields in enumerate(parsed_lines):
+        if len(fields) < max_cols:
+            fields.extend([''] * (max_cols - len(fields)))
+        parsed_lines[i] = fields
+    
+    # Create DataFrame
+    df = pd.DataFrame(parsed_lines)
+    
+    return df
+
+
+def read_file_auto(file_path):
+    """
+    Auto-detect separator and read file.
+    """
+    # Read first few lines to detect separator
+    lines = []
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
             for i, line in enumerate(f):
-                if i >= 20:  # Read first 20 lines for detection
+                if i >= 10:
                     break
                 line = line.rstrip('\n')
                 if line.strip():
@@ -160,195 +178,154 @@ def detect_separator_and_structure(file_path):
     except UnicodeDecodeError:
         with open(file_path, 'r', encoding='latin1') as f:
             for i, line in enumerate(f):
-                if i >= 20:
+                if i >= 10:
                     break
                 line = line.rstrip('\n')
                 if line.strip():
                     lines.append(line)
     
     if not lines:
-        return '\t', False, 1
+        return pd.DataFrame()
     
-    # Try different separators
-    separators = ['\t', ',', ';', ' ']
-    best_separator = '\t'
-    best_consistency = 0
-    best_num_cols = 1
+    # Check for tabs
+    if any('\t' in line for line in lines):
+        return read_file_with_separator(file_path, '\t')
     
-    for sep in separators:
-        col_counts = []
-        for line in lines:
-            if sep == ' ':
-                # For space separator, split on multiple spaces
-                fields = re.split(r'\s+', line.strip())
-            else:
-                fields = line.split(sep)
-            col_counts.append(len(fields))
-        
-        if col_counts:
-            # Check consistency
-            most_common = max(set(col_counts), key=col_counts.count)
-            consistency = col_counts.count(most_common) / len(col_counts)
-            
-            if consistency > best_consistency:
-                best_consistency = consistency
-                best_separator = sep
-                best_num_cols = most_common
+    # Check for commas
+    if any(',' in line for line in lines):
+        return read_file_with_separator(file_path, ',')
     
-    # Detect header by comparing first two rows
-    has_header = False
-    if len(lines) > 1:
-        if best_separator == ' ':
-            first_fields = re.split(r'\s+', lines[0].strip())
-            second_fields = re.split(r'\s+', lines[1].strip())
-        else:
-            first_fields = lines[0].split(best_separator)
-            second_fields = lines[1].split(best_separator)
-        
-        has_header = looks_like_header(first_fields, second_fields)
+    # Check for semicolons
+    if any(';' in line for line in lines):
+        return read_file_with_separator(file_path, ';')
     
-    return best_separator, has_header, best_num_cols
-
-
-def read_file_robust(file_path):
-    """
-    Robust file reader that handles various formats.
-    """
-    separator, has_header, num_cols = detect_separator_and_structure(file_path)
-    
-    lines = []
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.rstrip('\n')
-                if line.strip():
-                    lines.append(line)
-    except UnicodeDecodeError:
-        with open(file_path, 'r', encoding='latin1') as f:
-            for line in f:
-                line = line.rstrip('\n')
-                if line.strip():
-                    lines.append(line)
-    
-    # Parse lines based on detected separator
-    parsed_lines = []
-    for line in lines:
-        if separator == ' ':
-            # Split on spaces, but keep pipe-separated values together
-            fields = re.split(r'\s+', line.strip())
-        else:
-            fields = line.split(separator)
-        
-        # Pad or truncate to consistent number of columns
-        if len(fields) < num_cols:
-            fields.extend([''] * (num_cols - len(fields)))
-        elif len(fields) > num_cols:
-            fields = fields[:num_cols]
-        
-        parsed_lines.append(fields)
-    
-    # Create DataFrame
-    df = pd.DataFrame(parsed_lines)
-    
-    # If has header, set first row as column names
-    if has_header and len(df) > 1:
-        df.columns = df.iloc[0]
-        df = df.iloc[1:].reset_index(drop=True)
-    
-    return df, has_header
+    # Default to space
+    return read_file_with_separator(file_path, ' ')
 
 
 def detect_column_type(series):
     """
-    Detect the appropriate data type for a column.
-    Returns: 'numeric', 'integer', 'boolean', or 'text'
+    Detect the type of a column by checking if ALL non-empty values are of the same type.
+    Returns: 'integer', 'numeric', 'boolean', 'text', 'mixed', or 'empty'
     """
-    # Drop null values for type detection
+    # Drop null/empty values for type detection
     non_null = series.dropna()
-    if len(non_null) == 0:
-        return 'text'
+    non_empty = non_null[non_null.astype(str).str.strip() != '']
     
-    # Convert all values to strings for analysis
-    str_values = non_null.astype(str).str.strip()
+    if len(non_empty) == 0:
+        return 'empty'
     
-    # Check for boolean values
-    bool_values = {'true', 'false', 'yes', 'no', 'y', 'n', '1', '0', 
-                   'g', 'l', 'enriched', 'depleted', 'up', 'down'}
-    unique_lower = set(str_values.str.lower().unique())
-    if len(unique_lower) <= 2 and unique_lower.issubset(bool_values):
-        return 'boolean'
+    str_values = non_empty.astype(str).str.strip()
     
-    # Check for numeric values
+    # Check if all values are numeric
     numeric_pattern = re.compile(r'^[-+]?[\d]*\.?[\d]+(?:[eE][-+]?\d+)?$')
     numeric_count = sum(1 for v in str_values if numeric_pattern.match(v))
     
     if numeric_count == len(str_values):
-        # All values are numeric
+        # All values are numeric - check if integer or float
         try:
-            numeric_series = pd.to_numeric(non_null, errors='raise')
-            # Check if all values are integers
-            if (numeric_series == numeric_series.astype(int)).all():
+            numeric_values = pd.to_numeric(non_empty, errors='raise')
+            if (numeric_values == numeric_values.astype(int)).all():
                 return 'integer'
             else:
                 return 'numeric'
-        except (ValueError, TypeError):
+        except:
             return 'numeric'
-    elif numeric_count >= len(str_values) * 0.8:
-        # At least 80% numeric - likely a numeric column with some text
-        return 'numeric'
     
-    return 'text'
-
-
-def convert_column_type(series, col_type):
-    """
-    Convert a column to the detected type.
-    """
-    if col_type == 'numeric':
-        return pd.to_numeric(series, errors='coerce')
-    elif col_type == 'integer':
-        # Use Int64 to handle NaN values
-        numeric = pd.to_numeric(series, errors='coerce')
-        return numeric.astype('Int64')
-    elif col_type == 'boolean':
-        bool_map = {
-            'true': True, 'false': False,
-            'yes': True, 'no': False,
-            'y': True, 'n': False,
-            '1': True, '0': False,
-            'g': True, 'l': False,
-            'enriched': True, 'depleted': False,
-            'up': True, 'down': False
-        }
-        return series.astype(str).str.strip().str.lower().map(bool_map)
-    else:
-        # Keep as text
-        return series.astype(str)
+    # Check if all values are boolean
+    bool_values = {'true', 'false', 'yes', 'no', 'y', 'n', '1', '0', 
+                   'g', 'l', 'enriched', 'depleted', 'up', 'down'}
+    lower_values = str_values.str.lower()
+    if all(v in bool_values for v in lower_values):
+        return 'boolean'
+    
+    # If no numeric values at all, all are text
+    if numeric_count == 0:
+        return 'text'
+    
+    # Mixed types (some numeric, some text)
+    return 'mixed'
 
 
 def auto_detect_and_convert(df, verbose=False):
     """
-    Automatically detect and convert column types in a DataFrame.
+    Automatically detect and convert column types.
+    Only assigns a type if ALL values in a column are consistent.
+    Mixed columns are converted to string.
     """
     converted_df = df.copy()
     
     for col_idx, col in enumerate(converted_df.columns):
         col_type = detect_column_type(converted_df[col])
         
-        if col_type != 'text':
-            converted_df[col] = convert_column_type(converted_df[col], col_type)
-            
+        if col_type == 'integer':
+            # All values are integers
+            converted_df[col] = pd.to_numeric(converted_df[col], errors='coerce').astype('Int64')
             if verbose:
                 col_name = col if isinstance(col, str) else f"Column_{col_idx+1}"
-                print(f"    {col_name}: {col_type}")
+                print(f"    {col_name}: integer (consistent)")
+                
+        elif col_type == 'numeric':
+            # All values are numeric (floats)
+            converted_df[col] = pd.to_numeric(converted_df[col], errors='coerce')
+            if verbose:
+                col_name = col if isinstance(col, str) else f"Column_{col_idx+1}"
+                print(f"    {col_name}: numeric (consistent)")
+                
+        elif col_type == 'boolean':
+            # All values are boolean
+            bool_map = {
+                'true': True, 'false': False,
+                'yes': True, 'no': False,
+                'y': True, 'n': False,
+                '1': True, '0': False,
+                'g': True, 'l': False,
+                'enriched': True, 'depleted': False,
+                'up': True, 'down': False
+            }
+            converted_df[col] = converted_df[col].astype(str).str.strip().str.lower().map(bool_map)
+            if verbose:
+                col_name = col if isinstance(col, str) else f"Column_{col_idx+1}"
+                print(f"    {col_name}: boolean (consistent)")
+                
+        elif col_type == 'text':
+            # All values are text - ensure string type
+            converted_df[col] = converted_df[col].astype(str)
+            if verbose:
+                col_name = col if isinstance(col, str) else f"Column_{col_idx+1}"
+                print(f"    {col_name}: text (string)")
+                
+        elif col_type == 'mixed':
+            # Mixed types - convert to string
+            converted_df[col] = converted_df[col].astype(str)
+            if verbose:
+                col_name = col if isinstance(col, str) else f"Column_{col_idx+1}"
+                print(f"    {col_name}: mixed types (converted to string)")
+                
+        elif col_type == 'empty':
+            # Empty column - convert to string
+            converted_df[col] = converted_df[col].astype(str)
+            if verbose:
+                col_name = col if isinstance(col, str) else f"Column_{col_idx+1}"
+                print(f"    {col_name}: empty (string)")
     
     return converted_df
 
 
-def tsv_to_excel(output_file, input_specs, header=None, separator=None,
-                 quotechar='"', skip_first_column=False, auto_convert_types=True):
+def tsv_to_excel(output_file, input_specs, separator=None,
+                 quotechar='"', skip_first_column=False, auto_convert_types=True,
+                 global_header=None):
     """
     Convert multiple delimited files to an Excel file with separate sheets.
+    
+    Args:
+        output_file: Path to output Excel file
+        input_specs: List of input specifications (file[:sheet[:header_rows]])
+        separator: Field separator (None for auto-detect)
+        quotechar: Quote character
+        skip_first_column: Skip first column
+        auto_convert_types: Auto-detect and convert column types
+        global_header: Global header setting (True/False/None) - overrides per-file setting
     """
     if not input_specs:
         print("Error: No input files provided.")
@@ -360,7 +337,7 @@ def tsv_to_excel(output_file, input_specs, header=None, separator=None,
 
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             for input_spec in input_specs:
-                file_path_str, custom_sheet_name, has_header_override = parse_input_spec(input_spec)
+                file_path_str, custom_sheet_name, header_rows = parse_input_spec(input_spec)
                 file_path = Path(file_path_str)
 
                 if not file_path.exists():
@@ -382,23 +359,60 @@ def tsv_to_excel(output_file, input_specs, header=None, separator=None,
                     sheet_name = f"{base}_{counter}"
                 used_sheet_names.add(sheet_name)
 
-                # Read file using robust reader
-                df, has_header = read_file_robust(file_path)
+                # Read file
+                if separator is not None:
+                    print(f"  Using separator: '{repr(separator)}'")
+                    df = read_file_with_separator(file_path, separator)
+                else:
+                    print(f"  Auto-detecting separator...")
+                    df = read_file_auto(file_path)
                 
-                # Override header if specified
-                if has_header_override is not None:
-                    has_header = has_header_override
-                elif header is not None:
-                    has_header = header
+                # Determine final header_rows
+                if global_header is not None:
+                    # Global setting overrides everything
+                    final_header_rows = 1 if global_header else 0
+                else:
+                    # Use per-file setting (default 0)
+                    final_header_rows = header_rows
                 
                 print(f"  File: '{file_path.name}'")
-                print(f"    Header detected: {'Yes' if has_header else 'No'}")
+                print(f"    Header rows: {final_header_rows}")
                 print(f"    Columns: {len(df.columns)}")
                 print(f"    Rows: {len(df)}")
 
                 if df.empty:
                     print(f"Warning: '{file_path_str}' contains no data. Skipping...")
                     continue
+
+                # Apply header rows
+                if final_header_rows > 0:
+                    # Use specified number of rows as header
+                    if final_header_rows >= len(df):
+                        print(f"Warning: Header rows ({final_header_rows}) >= data rows ({len(df)}). Using no header.")
+                        has_header = False
+                        df.columns = [f'Column_{i+1}' for i in range(len(df.columns))]
+                    else:
+                        # Combine multiple header rows if needed
+                        if final_header_rows == 1:
+                            df.columns = df.iloc[0].tolist()
+                        else:
+                            # For multiple header rows, join them
+                            header_cols = []
+                            for col_idx in range(len(df.columns)):
+                                col_parts = []
+                                for row_idx in range(final_header_rows):
+                                    val = df.iloc[row_idx, col_idx]
+                                    if str(val).strip():
+                                        col_parts.append(str(val).strip())
+                                header_cols.append('_'.join(col_parts) if col_parts else f'Column_{col_idx+1}')
+                            df.columns = header_cols
+                        
+                        df = df.iloc[final_header_rows:].reset_index(drop=True)
+                        has_header = True
+                else:
+                    # No header
+                    has_header = False
+                    df.columns = [f'Column_{i+1}' for i in range(len(df.columns))]
 
                 # Optionally skip first column
                 if skip_first_column and len(df.columns) > 1:
@@ -463,54 +477,57 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Auto-detect everything (recommended)
-  python tsv2excel.py output.xlsx data1.tsv data2.tsv
+  # No header (default)
+  python tsv2excel.py output.xlsx data1.tsv
+
+  # With header (1 row)
+  python tsv2excel.py output.xlsx data1.tsv:Sheet1:1
+
+  # No header explicitly
+  python tsv2excel.py output.xlsx data1.tsv:Sheet1:0
 
   # Force tab separator
-  python tsv2excel.py output.xlsx --separator '\\t' data1.tsv data2.tsv
+  python tsv2excel.py output.xlsx --separator tab data1.tsv:Sheet1:1
 
-  # Force header for all files
-  python tsv2excel.py output.xlsx --header data1.tsv data2.tsv
-
-  # Force no header for all files
-  python tsv2excel.py output.xlsx --no-header data1.tsv data2.tsv
-
-  # Custom sheet names with header override
-  python tsv2excel.py output.xlsx data1.tsv:Table1:header data2.tsv:Table2:noheader
+  # Multiple files with different header settings
+  python tsv2excel.py output.xlsx file1.tsv:Sheet1:1 file2.tsv:Sheet2:0 file3.tsv:Sheet3:2
 
   # Disable automatic type detection
-  python tsv2excel.py output.xlsx --no-type-detection data1.tsv data2.tsv
+  python tsv2excel.py output.xlsx --no-type-detection data1.tsv
         """
     )
 
     parser.add_argument("output_file", help="Path to the output Excel file (.xlsx)")
     parser.add_argument("input_files", nargs='+',
-                        help="Input files (format: file.tsv or file.tsv:sheet_name or file.tsv:sheet_name:header)")
-    parser.add_argument("--header", action="store_true",
-                        help="Treat first row as header for all files")
-    parser.add_argument("--no-header", action="store_true",
-                        help="Do not treat first row as header for any file")
+                        help="Input files (format: file.tsv[:sheet_name[:header_rows]])")
     parser.add_argument("--separator", "--sep", dest="separator", default=None,
-                        help="Field delimiter (default: auto-detect)")
+                        help="Field delimiter: 'tab', 'comma', 'semicolon', 'space', or custom character")
     parser.add_argument("--quotechar", dest="quotechar", default='"',
                         help="Character used to quote fields (default: \")")
     parser.add_argument("--skip_first_column", "-s", action="store_true",
                         help="Remove the first column from each input file")
     parser.add_argument("--no-type-detection", dest="no_type_detection", action="store_true",
                         help="Disable automatic type detection (all values stored as text)")
+    parser.add_argument("--header", action="store_true",
+                        help="Force header for all files (overrides per-file setting)")
+    parser.add_argument("--no-header", action="store_true",
+                        help="Force no header for all files (overrides per-file setting)")
 
     args = parser.parse_args()
 
-    # Determine header mode
+    # Global header settings
     if args.header and args.no_header:
         print("Error: Cannot specify both --header and --no-header")
         sys.exit(1)
     
-    header_mode = None  # Auto-detect
+    global_header = None
     if args.header:
-        header_mode = True
+        global_header = True
     elif args.no_header:
-        header_mode = False
+        global_header = False
+
+    # Get separator
+    separator = get_separator(args.separator)
 
     output_file = args.output_file
     if not output_file.endswith('.xlsx'):
@@ -520,11 +537,11 @@ Examples:
     success = tsv_to_excel(
         output_file,
         args.input_files,
-        header=header_mode,
-        separator=args.separator,
+        separator=separator,
         quotechar=args.quotechar,
         skip_first_column=args.skip_first_column,
-        auto_convert_types=not args.no_type_detection
+        auto_convert_types=not args.no_type_detection,
+        global_header=global_header
     )
 
     if not success:

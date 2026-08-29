@@ -513,6 +513,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
     calculate_table_s1 = get_absolute_path("utils/calculate_table_s1.sh")
     calculate_table_s2 = get_absolute_path("utils/calculate_table_s2.sh")
     calculate_table_s3 = get_absolute_path("utils/calculate_table_s3.sh")
+    calculate_table_compara = get_absolute_path("utils/calculate_table_compara.sh")
     venn_plot = get_absolute_path("utils/venn-plot.py")
     
     # Get file paths
@@ -525,34 +526,37 @@ def step_documentation(gene_files, output_dirs, conda_env):
     print("\n--- Part A: Generating cancer scatter plots ---", file=sys.stderr)
     
     if Path(script_scatter).exists():
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
-            subprocess.run(
-                ["awk", '{if ($11<=0.01) print -log($9)/log(10),-log($10)/log(10),-log($NF)/log(10)}',
-                 str(cancer_out / "cancer_compara_set1_adj.txt")],
-                stdout=tmp, check=True
-            )
-            tmp_path1 = tmp.name
-        
         run_command_conda([
             "python", str(script_scatter),
-            tmp_path1, "2", "1", "3",
+            str(cancer_out / "cancer_compara_set1_adj.txt"), "9", "8", "16",
             "--output", str(figures_dir / "plot-compara-set1.png")
         ], step_name="Creating scatter plot (set1)", env_name=conda_env)
         
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
-            subprocess.run(
-                ["awk", '{if ($11<=0.01) print -log($9)/log(10),-log($10)/log(10),-log($NF)/log(10)}',
-                 str(cancer_out / "cancer_compara_set2_adj.txt")],
-                stdout=tmp, check=True
-            )
-            tmp_path2 = tmp.name
-        
         run_command_conda([
             "python", str(script_scatter),
-            tmp_path2, "2", "1", "3",
+            str(cancer_out / "cancer_compara_set2_adj.txt"), "9", "8", "16",
             "--output", str(figures_dir / "plot-compara-set2.png")
         ], step_name="Creating scatter plot (set2)", env_name=conda_env)
+        
+        if Path(calculate_table_compara).exists():
+            print("\nGenerating Table S5 ...", file=sys.stderr)
+            table_s5_output = tables_dir / "table_s5.tsv"
+            with open(table_s5_output, 'w') as f:
+                subprocess.run(
+                    ["bash", str(calculate_table_compara), str(cancer_out / "cancer_compara_set2_adj.txt")],
+                    stdout=f, check=True
+                )
+            print(f"  ✓ Table S5 saved to: {table_s5_output}", file=sys.stderr)
+
+            print("\nGenerating Table S6 ...", file=sys.stderr)
+            table_s6_output = tables_dir / "table_s6.tsv"
+            with open(table_s6_output, 'w') as f:
+                subprocess.run(
+                    ["bash", str(calculate_table_compara), str(cancer_out / "cancer_compara_set1_adj.txt")],
+                    stdout=f, check=True
+                )
+            print(f"  ✓ Table S6 saved to: {table_s6_output}", file=sys.stderr)
+
     
     # Part B: Generate tables
     print("\n--- Part B: Generating tables ---", file=sys.stderr)
@@ -598,6 +602,8 @@ def step_documentation(gene_files, output_dirs, conda_env):
                 stdout=f, check=True
             )
         print(f"  ✓ Table S3 saved to: {table_s3_output}", file=sys.stderr)
+
+
     
     # Part C: Generate Venn diagrams
     print("\n--- Part C: Generating Venn diagrams ---", file=sys.stderr)
@@ -761,7 +767,15 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("## Directory Structure\n\n")
         f.write("### Figures\n- Venn diagrams\n- Score distribution plots\n- Cancer comparison scatter plots\n\n")
         f.write("### Figures/Enrichment\n- Enrichment dot plots for all libraries\n\n")
-        f.write("### Tables\n- Table 1: Gene classification summary\n- Table S1: MONDO and Cancer gene statistics\n- Table S2: Combined gene set statistics\n- Table S3: Supercandidate gene statistics\n\n")
+        f.write("### Tables\n")
+        f.write("- Table 2: Gene classification summary\n")
+        f.write("- Table 3: Summary enrichment analysis\n")
+        f.write("- Table S1: MONDO and Cancer gene statistics\n")
+        f.write("- Table S2: Combined gene set statistics\n")
+        f.write("- Table S3: Supercandidate gene statistics\n")
+        f.write("- Table S4: Supercandidate fisher table\n")
+        f.write("- Table S5: Curated set cancer compara summary\n")
+        f.write("- Table S6: Candidate set cancer compara summary\n\n")
         f.write("### Summaries\n- Summary tables for each analysis\n\n")
         f.write("### Matrices\n- Overlap matrices\n- Aggregated matrices\n\n")
         f.write("### Excel Files (generated in Step 5)\n")
@@ -807,30 +821,29 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     # Complete gene list
     combined_file = gene_files.get("combined_file")
     if combined_file and Path(combined_file).exists():
-        excel1_files.append(f"{combined_file}:Complete_Gene_List")
-    else:
-        excel1_files.append(f"{gene_files['background']}:Complete_Gene_List")
+        excel1_files.append(f"{combined_file}:Complete_Gene_List:1")
     
     # MOE list (supercandidate.tsv)
     if docs_dir.exists():
         supercandidate_file = docs_dir / "supercandidate.tsv"
         if supercandidate_file.exists():
-            excel1_files.append(f"{supercandidate_file}:Supercandidates")
+            excel1_files.append(f"{supercandidate_file}:Supercandidates:1")
 
     # Cancer list
     cancer_file = gene_files.get("cancer_file")
     if cancer_file and Path(cancer_file).exists():
-        excel1_files.append(f"{cancer_file}:Cancer_List")
+        excel1_files.append(f"{cancer_file}:Cancer_List:0")
     
     # MONDO list
     mondo_file = gene_files.get("mondo_file")
     if mondo_file and Path(mondo_file).exists():
-        excel1_files.append(f"{mondo_file}:MONDO_List")
+        excel1_files.append(f"{mondo_file}:MONDO_List:0")
     
     if excel1_files:
         excel1_output = docs_dir / "supfile_1_ndd_gene_lists.xlsx"
         cmd = [get_conda_python(conda_env), str(tsv2excel_script), str(excel1_output)]
         cmd.extend(excel1_files)
+        cmd.extend(['--separator','\\t'])
         
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -844,13 +857,13 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     # ============================================
     
     enrichment_libraries = [
-        ("GO_Biological_Process_2026", "GO_BP"),
-        ("GO_Cellular_Component_2026", "GO_CC"),
-        ("GO_Molecular_Function_2026", "GO_MF"),
-        ("KEGG_2021_Human", "KEGG"),
-        ("Reactome_Pathways_2024", "Reactome"),
-        ("SynGO_2024", "SynGO"),
-        ("MONDO_GROUPS_2026", "MONDO_Groups")
+        ("GO_Biological_Process_2026", "GO_BP", "1"),
+        ("GO_Cellular_Component_2026", "GO_CC", "1"),
+        ("GO_Molecular_Function_2026", "GO_MF", "1"),
+        ("KEGG_2021_Human", "KEGG", "1"),
+        ("Reactome_Pathways_2024", "Reactome", "1"),
+        ("SynGO_2024", "SynGO", "1"),
+        ("MONDO_GROUPS_2026", "MONDO_Groups", "1")
     ]
     
     gene_sets = [
@@ -864,17 +877,18 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
         
         excel_files = []
         
-        for library, sheet_name in enrichment_libraries:
+        for library, sheet_name , header in enrichment_libraries:
             file_path = main_dir / f"{gene_set['prefix']}_{library}.tsv"
             
             if file_path.exists():
-                excel_files.append(f"{file_path}:{sheet_name}")
+                excel_files.append(f"{file_path}:{sheet_name}:{header}")
         
         if excel_files:
             excel_output = docs_dir / gene_set['excel_name']
             cmd = [get_conda_python(conda_env), str(tsv2excel_script), str(excel_output), 
                       "--skip_first_column"]
             cmd.extend(excel_files)
+            cmd.extend(['--separator','\\t'])
             
             try:
                 result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -897,16 +911,17 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     if docs_dir.exists():
         cancer_compara1 = docs_dir / "cancer_compara_set1_adj.txt"
         if cancer_compara1.exists():
-            excel5_files.append(f"{cancer_compara1}:Cancer_Comparison_Set1")
+            excel5_files.append(f"{cancer_compara1}:Cancer_Comparison_Set1:1")
 
         cancer_compara2 = docs_dir / "cancer_compara_set2_adj.txt"
         if cancer_compara2.exists():
-            excel5_files.append(f"{cancer_compara2}:Cancer_Comparison_Set2")
+            excel5_files.append(f"{cancer_compara2}:Cancer_Comparison_Set2:1")
 
     if excel5_files:
         excel5_output = docs_dir / "supfile_5_cancer_compara.xlsx"
         cmd = [get_conda_python(conda_env), str(tsv2excel_script), str(excel5_output)]
         cmd.extend(excel5_files)
+        cmd.extend(['--separator','\\t'])
 
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -929,7 +944,7 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     if tables_dir.exists():
         for tsv_file in sorted(tables_dir.glob("*.tsv")):
             sheet_name = tsv_file.stem.replace("table_", "Table_").replace("table", "Table")
-            report_files.append(f"{tsv_file}:{sheet_name}")
+            report_files.append(f"{tsv_file}:{sheet_name}:1")
     '''
     # Possible file to be inluded in the report
     # Summaries from docs/summaries/
@@ -966,6 +981,7 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
         report_output = docs_dir / "ndd-report.xlsx"
         cmd = [get_conda_python(conda_env), str(tsv2excel_script), str(report_output)]
         cmd.extend(report_files)
+        cmd.extend(['--separator','\\t'])
         
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
