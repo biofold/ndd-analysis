@@ -130,7 +130,7 @@ echo -e "\t"
 
 #echo "======================================================================"
 line_count=`wc -l < "$INPUT_FILE" |awk '{print $1}' `
-echo -e "Total lines:\t{$line_count}"
+echo -e "Total lines:\t${line_count}"
 echo ""
 #echo "Note: Column mapping: cancer=col$COL9, non_cancer=col$COL10, gene_set=col$COL11, cancer_vs_non_cancer=col$COLNF"
 #echo "Note: Numbers in parentheses indicate counts where cancer_vs_non_cancer<=0.01"
