@@ -689,9 +689,13 @@ def step_documentation(gene_files, output_dirs, conda_env):
         (output_dirs['docs'] / "summaries/summary_table.tsv", 
          output_dirs['docs'] / "tables", 
          "table_3.tsv"),
+        (output_dirs['docs'] / "main/mondo_supercandidate_matrix.txt",
+         output_dirs['docs'] / "matrices",
+         None),
         (output_dirs['docs'] / "matrices/mondo_supercandidate_matrix.txt",
          output_dirs['docs'] / "tables",
          "table_s4.tsv")
+     
     ]
     
     for src_file, dst_dir, new_name in key_files:
