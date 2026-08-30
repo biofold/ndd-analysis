@@ -380,8 +380,6 @@ def step_cancer_analysis(gene_files, output_dirs, conda_env):
     enrichment_figures_dir.mkdir(parents=True, exist_ok=True)
     
     set_operations = get_absolute_path("utils/set_operations.sh")
-    #fisher_bh = get_absolute_path("utils/fisher_bh.py")
-    #script_aggregate = get_absolute_path("utils/aggregate_pvals.py")
     run_cancer_comparison = get_absolute_path("utils/run_cancer_comparison.sh")
     script1 = get_absolute_path("scripts/1_enrichr_all.py")
     
@@ -515,6 +513,9 @@ def step_documentation(gene_files, output_dirs, conda_env):
     calculate_table_s3 = get_absolute_path("utils/calculate_table_s3.sh")
     calculate_table_compara = get_absolute_path("utils/calculate_table_compara.sh")
     venn_plot = get_absolute_path("utils/venn-plot.py")
+    violin_script = get_absolute_path("utils/violin.py")
+    ks_test_script = get_absolute_path("utils/ks-test.py")
+    set_operations = get_absolute_path("utils/set_operations.sh")
     
     # Get file paths
     combined_file = gene_files.get("combined_file")
@@ -539,23 +540,23 @@ def step_documentation(gene_files, output_dirs, conda_env):
         ], step_name="Creating scatter plot (set2)", env_name=conda_env)
         
         if Path(calculate_table_compara).exists():
-            print("\nGenerating Table S5 ...", file=sys.stderr)
-            table_s5_output = tables_dir / "table_s5.tsv"
-            with open(table_s5_output, 'w') as f:
+            print("\nGenerating Table S7 ...", file=sys.stderr)
+            table_s7_output = tables_dir / "table_s7.tsv"
+            with open(table_s7_output, 'w') as f:
                 subprocess.run(
                     ["bash", str(calculate_table_compara), str(cancer_out / "cancer_compara_set2_adj.txt")],
                     stdout=f, check=True
                 )
-            print(f"  ✓ Table S5 saved to: {table_s5_output}", file=sys.stderr)
+            print(f"  ✓ Table S7 saved to: {table_s7_output}", file=sys.stderr)
 
-            print("\nGenerating Table S6 ...", file=sys.stderr)
-            table_s6_output = tables_dir / "table_s6.tsv"
-            with open(table_s6_output, 'w') as f:
+            print("\nGenerating Table S8 ...", file=sys.stderr)
+            table_s8_output = tables_dir / "table_s8.tsv"
+            with open(table_s8_output, 'w') as f:
                 subprocess.run(
                     ["bash", str(calculate_table_compara), str(cancer_out / "cancer_compara_set1_adj.txt")],
                     stdout=f, check=True
                 )
-            print(f"  ✓ Table S6 saved to: {table_s6_output}", file=sys.stderr)
+            print(f"  ✓ Table S8 saved to: {table_s8_output}", file=sys.stderr)
 
     
     # Part B: Generate tables
@@ -701,75 +702,95 @@ def step_documentation(gene_files, output_dirs, conda_env):
     for src_file, dst_dir, new_name in key_files:
         if copy_file(src_file, dst_dir, new_name):
             print(f"  ✓ Copied key file: {src_file.name}", file=sys.stderr)
-    ''' 
-    # Part D: Move summary files
-    print("\n--- Part D: Moving summary files ---", file=sys.stderr)
-    for dir_key in ['main', 'moe', 'cancer_results']:
-        for summary_file in output_dirs[dir_key].glob("*summary*"):
-            if move_file(summary_file, summaries_dir):
-                print(f"  ✓ Moved summary: {summary_file.name}", file=sys.stderr)
-    
-    # Part E: Move matrix files
-    print("\n--- Part E: Moving matrix files ---", file=sys.stderr)
-    for dir_key in ['main', 'cancer_results']:
-        for matrix_file in output_dirs[dir_key].glob("*matrix*"):
-            if move_file(matrix_file, matrices_dir):
-                print(f"  ✓ Moved matrix: {matrix_file.name}", file=sys.stderr)
-    
-    key_files = [
-        (output_dirs['docs'] / "supercandidate.tsv",
-         docs_dir,
-         "supercandidate.tsv"),
-        
-        (output_dirs['docs'] / "supercandidate_filtered.tsv",
-         docs_dir,
-         "supercandidate_filtered.tsv"),
-        
-        (output_dirs['docs'] / "dist_mondo_supercandidate.txt",
-         docs_dir,
-         "dist_mondo_supercandidate.txt"),
-        
-        (output_dirs['cancer_results'] / "cancer_compara_set1_adj.txt",
-         docs_dir,
-         "cancer_compara_set1_adj.txt"),
-        
-        (output_dirs['cancer_results'] / "cancer_compara_set2_adj.txt",
-         docs_dir,
-         "cancer_compara_set2_adj.txt")
-    ]
-    
-    for src_file, dst_dir, new_name in key_files:
-        if src_file.exists():
-            # File in original location
-            if copy_file(src_file, dst_dir, new_name):
-                print(f"  ✓ Copied: {src_file.name} → {dst_dir / new_name}", file=sys.stderr)
-        elif (dst_dir / new_name).exists():
-            # Already in docs/ from previous run
-            print(f"  • Already in docs/: {new_name}", file=sys.stderr)
-        else:
-            sys.stderr.write(f"  ✗ Missing: {new_name}\n")
 
-    print("\n--- Part G: Copy key files ---", file=sys.stderr)
-    key_files = [
-        (output_dirs['docs'] / "summaries/summary_table.tsv", 
-         output_dirs['docs'] / "tables", 
-         "table_3.tsv"),
-        (output_dirs['docs'] / "matrices/mondo_supercandidate_matrix.txt",
-         output_dirs['docs'] / "tables",
-         "table_s4.tsv")
-    ]
-
-    for src_file, dst_dir, new_name in key_files:
-        if copy_file(src_file, dst_dir, new_name):
-            print(f"  ✓ Copied key file: {src_file.name}", file=sys.stderr)
-    '''
+    # Part H: Generate SysNDD comparison tables and figures
+    print("\n--- Part H: Generating SysNDD comparison ---", file=sys.stderr)
+    
+    # Get SysNDD data file
+    sysndd_file = gene_files.get("sysndd_file")
+    
+    # Check if SysNDD file exists
+    if sysndd_file and Path(sysndd_file).exists() and Path(violin_script).exists() and Path(ks_test_script).exists():
+        
+        # Part H1: SysNDD distribution across gene classes
+        print("\n--- Part H1: SysNDD distribution across gene classes ---", file=sys.stderr)
+        
+        violin_all_output = figures_dir / "violin_all.txt"
+        
+        # Run violin.py for all three gene classes
+        # Column 5 = SysNDD score, Column 2 = gene class (1=no_evidence, 2=candidate, 3=curated)
+        run_command_conda([
+            "python", str(violin_script),
+            str(sysndd_file), "5", "2",
+            str(violin_all_output)
+        ], step_name="Generating violin plot (all gene classes)", env_name=conda_env)
+        
+        # Move results to tables
+        if violin_all_output.exists():
+            if copy_file(violin_all_output, tables_dir, "table_s5a.tsv"):
+                print(f"  ✓ Table S5a saved to: {tables_dir / 'table_s5a.tsv'}", file=sys.stderr)
+        
+        # Part H2: SysNDD distribution across MOE score tiers
+        print("\n--- Part H2: SysNDD distribution across MOE score tiers ---", file=sys.stderr)
+        
+        # Combine SysNDD data with supercandidate.tsv (MOE scores)
+        supercandidate_file = docs_dir / "supercandidate.tsv"
+        sysndd_moe_file = docs_dir / "sysndd_moe.tsv"
+        
+        if supercandidate_file.exists():
+            # Combine SysNDD scores with MOE scores
+            # Extract columns: gene, MOE_score, SysNDD_score
+            combined_cmd = (
+                f"{set_operations} {sysndd_file} {supercandidate_file} 1 1 -o intersect "
+                f"| awk -v OFS='\\t' '{{print $1,$2,$3,$7}}' > {sysndd_moe_file}"
+            )
+            run_bash_command(combined_cmd, step_name="Combining SysNDD scores with MOE scores")
+            
+            if sysndd_moe_file.exists():
+                # Run violin.py for MOE subsets
+                # Column 4 = SysNDD score, Column 2 = MOE score
+                violin_moe_output = figures_dir / "violin_moe.txt"
+                run_command_conda([
+                    "python", str(violin_script),
+                    str(sysndd_moe_file), "4", "2",
+                    str(violin_moe_output)
+                ], step_name="Generating violin plot (MOE subsets)", env_name=conda_env)
+                
+                # Move results to tables
+                if violin_moe_output.exists():
+                    if copy_file(violin_moe_output, tables_dir, "table_s5b.tsv"):
+                        print(f"  ✓ Table S5b saved to: {tables_dir / 'table_s5b.tsv'}", file=sys.stderr)
+                
+                # Run ks-test.py for MOE subsets
+                ks_moe_output = figures_dir / "ks_moe.txt"
+                run_command_conda([
+                    "python", str(ks_test_script),
+                    str(sysndd_moe_file), "4", "2",
+                    str(ks_moe_output)
+                ], step_name="Generating KS test matrix (MOE subsets)", env_name=conda_env)
+                
+                # Move results to tables
+                if ks_moe_output.exists():
+                    if copy_file(ks_moe_output, tables_dir, "table_s6.tsv"):
+                        print(f"  ✓ Table S6 saved to: {tables_dir / 'table_s6.tsv'}", file=sys.stderr)
+                        
+                # Move sysndd_moe.tsv to docs for reference
+                #if copy_file(sysndd_moe_file, docs_dir):
+                #    print(f"  ✓ sysndd_moe.tsv copied to docs/", file=sys.stderr)
+    else:
+        if not sysndd_file or not Path(sysndd_file).exists():
+            sys.stderr.write("Warning: SysNDD file not found, skipping SysNDD comparison\n")
+        if not Path(violin_script).exists():
+            sys.stderr.write(f"Warning: violin.py not found: {violin_script}\n")
+        if not Path(ks_test_script).exists():
+            sys.stderr.write(f"Warning: ks-test.py not found: {ks_test_script}\n")
 
     # Create README
     readme_path = docs_dir / "README.md"
     with open(readme_path, 'w') as f:
         f.write("# NDD Analysis Results\n\n")
         f.write("## Directory Structure\n\n")
-        f.write("### Figures\n- Venn diagrams\n- Score distribution plots\n- Cancer comparison scatter plots\n\n")
+        f.write("### Figures\n- Venn diagrams\n- Score distribution plots\n- Cancer comparison scatter plots\n- SysNDD violin plots\n\n")
         f.write("### Figures/Enrichment\n- Enrichment dot plots for all libraries\n\n")
         f.write("### Tables\n")
         f.write("- Table 2: Gene classification summary\n")
@@ -778,12 +799,15 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- Table S2: Combined gene set statistics\n")
         f.write("- Table S3: Supercandidate gene statistics\n")
         f.write("- Table S4: Supercandidate fisher table\n")
-        f.write("- Table S5: Curated set cancer compara summary\n")
-        f.write("- Table S6: Candidate set cancer compara summary\n\n")
+        f.write("- Table S5a: SysNDD score distribution across gene classes\n")
+        f.write("- Table S5b: SysNDD score distribution across MOE score tiers\n")
+        f.write("- Table S6: KS test results comparing SysNDD scores across MOE subsets\n")
+        f.write("- Table S7: Curated set cancer compara summary\n")
+        f.write("- Table S8: Candidate set cancer compara summary\n\n")
         f.write("### Summaries\n- Summary tables for each analysis\n\n")
         f.write("### Matrices\n- Overlap matrices\n- Aggregated matrices\n\n")
         f.write("### Excel Files (generated in Step 5)\n")
-        f.write("- `supfile_1_ndd_gene_lists.xlsx`: Complete gene list, MOE list, Cancer list, MONDO list\n")
+        f.write("- `supfile_1_ndd_gene_lists.xlsx`: Complete gene list, MOE list, Cancer list, MONDO list, SysNDD MOE list\n")
         f.write("- `supfile_2_curated_enrichment.xlsx`: Curated set enrichment results\n")
         f.write("- `supfile_3_candidate_enrichment.xlsx`: Candidate set enrichment results\n")
         f.write("- `supfile_4_no_evidence_enrichment.xlsx`: No evidence set enrichment results\n")
@@ -793,6 +817,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- `supercandidate.tsv`: Supercandidate genes\n")
         f.write("- `cancer_compara_set1_adj.txt`: Cancer comparison results (set1)\n")
         f.write("- `cancer_compara_set2_adj.txt`: Cancer comparison results (set2)\n")
+        f.write("- `sysndd_moe.tsv`: SysNDD scores combined with MOE scores\n")
     
     print(f"\n  ✓ Created README: {readme_path}", file=sys.stderr)
 
@@ -842,6 +867,11 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     mondo_file = gene_files.get("mondo_file")
     if mondo_file and Path(mondo_file).exists():
         excel1_files.append(f"{mondo_file}:MONDO_List:0")
+    
+    # SysNDD MOE file
+    sysndd_moe_file = docs_dir / "sysndd_moe.tsv"
+    if sysndd_moe_file.exists():
+        excel1_files.append(f"{sysndd_moe_file}:SysNDD_MOE:1")
     
     if excel1_files:
         excel1_output = docs_dir / "supfile_1_ndd_gene_lists.xlsx"
@@ -949,37 +979,6 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
         for tsv_file in sorted(tables_dir.glob("*.tsv")):
             sheet_name = tsv_file.stem.replace("table_", "Table_").replace("table", "Table")
             report_files.append(f"{tsv_file}:{sheet_name}:1")
-    '''
-    # Possible file to be inluded in the report
-    # Summaries from docs/summaries/
-    if summaries_dir.exists():
-        for tsv_file in sorted(summaries_dir.glob("*.tsv")):
-            sheet_name = tsv_file.stem.replace("_summary", "_Summary").replace("summary", "Summary")
-            report_files.append(f"{tsv_file}:{sheet_name}")
-    
-    # Matrices from docs/matrices/
-    if matrices_dir.exists():
-        for txt_file in sorted(matrices_dir.glob("*.txt")):
-            sheet_name = txt_file.stem.replace("_matrix", "_Matrix").replace("matrix", "Matrix")
-            report_files.append(f"{txt_file}:{sheet_name}")
-        for tsv_file in sorted(matrices_dir.glob("*.tsv")):
-            sheet_name = tsv_file.stem.replace("_matrix", "_Matrix").replace("matrix", "Matrix")
-            report_files.append(f"{tsv_file}:{sheet_name}")
-    
-    # Key files from docs/
-    if docs_dir.exists():
-        supercandidate_file = docs_dir / "supercandidate.tsv"
-        if supercandidate_file.exists():
-            report_files.append(f"{supercandidate_file}:Supercandidates")
-        
-        supercandidate_filtered_file = docs_dir / "supercandidate_filtered.tsv"
-        if supercandidate_filtered_file.exists():
-            report_files.append(f"{supercandidate_filtered_file}:Supercandidates_Filtered")
-        
-        dist_file = docs_dir / "dist_mondo_supercandidate.txt"
-        if dist_file.exists():
-            report_files.append(f"{dist_file}:Score_Distribution")
-    '''
     
     if report_files:
         report_output = docs_dir / "ndd-report.xlsx"
@@ -1000,7 +999,7 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
 def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
                  set0=None, set1=None, set2=None, background=None,
                  combined_file=None,
-                 cancer_file=None, mondo_file=None,
+                 cancer_file=None, mondo_file=None, sysndd_file=None,
                  config_file=None, libraries_enrichment=None,
                  libraries_supercandidate=None, conda_env="ndd_analysis",
                  run_steps=None):
@@ -1031,6 +1030,8 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             cancer_file = config['cancer_file']
         if not mondo_file and 'mondo_file' in config:
             mondo_file = config['mondo_file']
+        if not sysndd_file and 'sysndd_file' in config:
+            sysndd_file = config['sysndd_file']
         if not libraries_enrichment and 'libraries_enrichment' in config:
             libraries_enrichment = config['libraries_enrichment']
         if not libraries_supercandidate and 'libraries_supercandidate' in config:
@@ -1131,7 +1132,8 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
         "combined_file": Path(combined_file).resolve() if combined_file else None,
         "cancer_file": Path(cancer_file).resolve() if cancer_file else data_dir / "cancer.txt",
         "mondo_file": Path(mondo_file).resolve() if mondo_file else data_dir / "mondo.txt",
-        "gmt_file": lib_dir / "MONDO_GROUPS_2026.gmt"
+        "gmt_file": lib_dir / "MONDO_GROUPS_2026.gmt",
+        "sysndd_file": Path(sysndd_file).resolve() if sysndd_file else data_dir / "SysNDD_all.txt"
     }
     
     # Check input files
@@ -1141,6 +1143,8 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
             print(f"  ✓ Found {name}: {path}", file=sys.stderr)
         elif name == "combined_file" and path is None:
             print(f"  • {name}: Not provided (using individual gene sets)", file=sys.stderr)
+        elif name == "sysndd_file" and path is not None and not Path(path).exists():
+            print(f"  • {name}: Not found at {path} (will skip SysNDD comparison)", file=sys.stderr)
         else:
             raise FileNotFoundError(f"Missing input file: {path}")
     
@@ -1207,6 +1211,7 @@ Examples:
     parser.add_argument("--combined_file", type=str, default=None)
     parser.add_argument("--cancer_file", type=str, default=None)
     parser.add_argument("--mondo_file", type=str, default=None)
+    parser.add_argument("--sysndd_file", type=str, default=None)
     parser.add_argument("--libraries_enrichment", type=str, default=None)
     parser.add_argument("--libraries_supercandidate", type=str, default=None)
     parser.add_argument("--conda_env", type=str, default="ndd_analysis")
@@ -1233,6 +1238,7 @@ Examples:
         combined_file=args.combined_file,
         cancer_file=args.cancer_file,
         mondo_file=args.mondo_file,
+        sysndd_file=args.sysndd_file,
         config_file=args.config,
         libraries_enrichment=libraries_enrichment,
         libraries_supercandidate=libraries_supercandidate,
