@@ -155,7 +155,8 @@ def _apply_upsetplot_pandas3_patch(_up_plotting, pd, np):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python upset-plot.py <input.tsv> <class_name> [subgroups] [output_file]")
+        print("Usage: python upset-plot.py <input.tsv> <class_name> [subgroups] [output_file] [labels]")
+        print("  labels       - Optional display names, e.g. sanchis=SJ,hc=HC,neuro=NEU")
         print()
         print("Arguments:")
         print("  input.tsv    - File with 4 columns: gene, class, score, pipe-separated subgroups")
@@ -172,6 +173,15 @@ def main():
     class_name = sys.argv[2]
     subgroups_arg = sys.argv[3] if len(sys.argv) > 3 else None
     output_file = sys.argv[4] if len(sys.argv) > 4 else f"upset_{class_name}.png"
+    # Optional 5th argument: display labels for the subgroups, e.g.
+    # "sanchis=SJ,hc=HC,neuro=NEU" -- changes only what is printed on the
+    # matrix rows, not which genes are counted.
+    labels = {}
+    if len(sys.argv) > 5 and sys.argv[5].strip():
+        for pair in sys.argv[5].split(','):
+            if '=' in pair:
+                k, v = pair.split('=', 1)
+                labels[k.strip().lower()] = v.strip()
 
     if not os.path.exists(input_file):
         print(f"Error: File not found: {input_file}", file=sys.stderr)
@@ -254,7 +264,8 @@ def main():
 
     _apply_upsetplot_pandas3_patch(_up_plotting, pd, np)
 
-    contents = {sg: gene_subgroups[sg] for sg in subgroups_to_plot}
+    contents = {labels.get(sg, sg): gene_subgroups[sg] for sg in subgroups_to_plot}
+    label_to_subgroup = {labels.get(sg, sg): sg for sg in subgroups_to_plot}
     membership = from_contents(contents)
 
     fig = plt.figure(figsize=(max(8, 1.5 * len(subgroups_to_plot) + 4.5), 6))
@@ -301,7 +312,7 @@ def main():
         margin = 0.03 * abs(xlim[1] - xlim[0])
         row_labels = [t.get_text() for t in mat_ax.get_yticklabels()]
         for row_idx, category in enumerate(row_labels):
-            total = len(gene_subgroups.get(category, set()))
+            total = len(gene_subgroups.get(label_to_subgroup.get(category, category), set()))
             mat_ax.text(
                 xlim[1] + margin, row_idx, f"{total:,}",
                 ha="left", va="center", fontsize=8, color="#333333",

@@ -22,7 +22,11 @@ Every script here is invoked by `run_ndd_analysis.py` (or, for
   `moe_clinvar_validation.py` and `moe_pli_validation.py` test it against
   ClinVar and gnomAD constraint; `moe_annotation_bias_baseline.py` tests it
   against annotation-volume baselines; `mondo_hpo_by_moe.py` compares MONDO
-  and HPO term coverage across MOE tiers.
+  and HPO term coverage across MOE tiers; `moe_component_analysis.py`
+  quantifies redundancy between the five MOE components (phi, Jaccard, PCA),
+  compares leave-one-component-out and HPO-augmented scores by DeLong's test,
+  reports Youden J / F1 per MOE cutoff, ClinGen haploinsufficiency by tier and
+  MOE discrimination within PubMed-count quartiles (Tables S15-S20).
 
 - **`plotting/`** — generic statistical plotting primitives shared across
   pipeline steps (violin, bar, pairwise KS/Fisher-test matrices, ROC/PR,
@@ -31,7 +35,11 @@ Every script here is invoked by `run_ndd_analysis.py` (or, for
 
 - **`table_generation/`** — shell scripts that compute the manuscript's
   Table 2 and Tables S1-S3/compara from pipeline outputs, plus
-  `tsv2excel.py`, which packages TSVs into the supplementary `.xlsx` files.
+  `tsv2excel.py`, which packages TSVs into the supplementary `.xlsx` files,
+  and `source_contribution.py`, which checks the Table 1 classification rule
+  against the pipeline classes, counts genes per rule and flags per gene,
+  reclassifies with each resource removed, lists SFARI-only candidates and
+  draws the classification decision tree (Tables S21-S25; step 6, Part E.4).
 
 - **`cancer_comparison/`** — the cancer-vs-non-cancer GO-term comparison
   pipeline. `run_cancer_comparison.sh` calls `aggregate_pvals.py` and

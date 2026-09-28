@@ -652,12 +652,15 @@ def step_documentation(gene_files, output_dirs, conda_env):
     print("\n--- Part C.2: Generating UpSet plots ---", file=sys.stderr)
 
     if Path(upset_plot).exists() and combined_file:
+        # Display abbreviations used in Table 1, the pseudocode and the decision tree
+        upset_labels = ("sanchis=SJ,hc=HC,candidate=LC,neuro=NEU,develop=DEV,"
+                        "sfari+=SF1,sfari=SF")
         print("\nGenerating UpSet plot (candidate)...", file=sys.stderr)
         upset_candidate_output = figures_dir / "upset_candidate.png"
         run_command_conda([
             "python", str(upset_plot),
             str(combined_file), "candidate", "sanchis,candidate,neuro,develop,sfari",
-            str(upset_candidate_output)
+            str(upset_candidate_output), upset_labels
         ], step_name="Generating UpSet plot (candidate)", env_name=conda_env)
         print(f"  ✓ UpSet plot saved to: {upset_candidate_output}", file=sys.stderr)
 
@@ -666,7 +669,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
         run_command_conda([
             "python", str(upset_plot),
             str(combined_file), "curated", "sanchis,hc,neuro,develop,sfari+",
-            str(upset_curated_output)
+            str(upset_curated_output), upset_labels
         ], step_name="Generating UpSet plot (curated)", env_name=conda_env)
         print(f"  ✓ UpSet plot saved to: {upset_curated_output}", file=sys.stderr)
 
@@ -1247,6 +1250,13 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     for src_file, new_name in validation_tables:
         if copy_file(src_file, tables_dir, new_name):
             print(f"  ✓ Copied validation table: {src_file.name} → {new_name}", file=sys.stderr)
+
+    # Response/supplementary figures produced by Parts E.3/E.4 live in
+    # validation_dir; copy them next to the other manuscript figures.
+    for src_file in [validation_dir / "source_decision_tree.png",
+                     validation_dir / "moe_component_figure.png"]:
+        if copy_file(src_file, figures_dir, src_file.name):
+            print(f"  ✓ Copied figure: {src_file.name} → {figures_dir}", file=sys.stderr)
 
 
 def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
