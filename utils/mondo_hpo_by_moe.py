@@ -36,6 +36,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 
@@ -104,11 +105,11 @@ def main():
     width = 0.27
     fig, ax = plt.subplots(figsize=(10, 6), facecolor="white")
     ax.set_facecolor("white")
-    ax.bar(x - width, counts["genes_with_MONDO"], width, label="Genes with ≥1 MONDO term",
+    ax.bar(x - width, counts["genes_with_MONDO"], width,
            color=COLOR_MONDO, edgecolor="#333333", linewidth=0.6)
-    ax.bar(x, counts["genes_with_HPO"], width, label="Genes with ≥1 HPO term",
+    ax.bar(x, counts["genes_with_HPO"], width,
            color=COLOR_HPO, edgecolor="#333333", linewidth=0.6)
-    ax.bar(x + width, counts["total_genes"], width, label="All MOE genes",
+    ax.bar(x + width, counts["total_genes"], width,
            color=COLOR_TOTAL, edgecolor="#333333", linewidth=0.6)
 
     ax.set_xticks(x)
@@ -117,7 +118,15 @@ def main():
     ax.set_ylabel("Number of genes", fontsize=14, labelpad=10)
     label = "candidate genes" if not args.all_classes else "all scored genes"
     ax.set_title(f"MONDO / HPO term coverage by MOE tier ({label})", fontsize=15, pad=14)
-    ax.legend(fontsize=12, frameon=False)
+    # Square colour swatches, top-left, naming the three gene sets.
+    handles = [
+        Patch(facecolor=COLOR_MONDO, edgecolor="#333333", linewidth=0.6, label="MONDO genes"),
+        Patch(facecolor=COLOR_HPO, edgecolor="#333333", linewidth=0.6, label="HPO genes"),
+        Patch(facecolor=COLOR_TOTAL, edgecolor="#333333", linewidth=0.6, label="MOE genes"),
+    ]
+    ax.legend(handles=handles, loc="upper left", fontsize=12, frameon=False,
+              handlelength=1.1, handleheight=1.1, labelspacing=0.6,
+              borderaxespad=0.8)
     ax.tick_params(labelsize=12)
 
     # Full plot border, matching the other MOE-tier panels.
