@@ -282,6 +282,14 @@ def main():
             spine.set_visible(True)
             spine.set_color('#333333')
             spine.set_linewidth(1.0)
+        # Fewer gridlines (denser default tick spacing gets cluttered once the y-limit is
+        # raised below), and headroom above the tallest bar so its count label -- printed
+        # just above the bar -- doesn't sit flush against the new top border.
+        from matplotlib.ticker import MaxNLocator
+        tallest_bar = max((bar.get_height() for bar in inter_ax.patches), default=0)
+        if tallest_bar > 0:
+            inter_ax.set_ylim(0, tallest_bar * 1.15)
+        inter_ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
 
     # Total set size per category, printed to the right of each matrix row (in place of
     # the removed left-hand totals bar chart).
