@@ -35,7 +35,7 @@ seven source flags:
 Rule (Table 1), with HC = GeneTrek high-confidence, LC = GeneTrek candidate:
   high-confidence  <- HC or sfari+ (SFARI entry assigning score 2) or (Orphanet neuro and
                       Orphanet develop) or (Sanchis-Juan and (neuro or develop
-                      or LC or any SFARI))
+                      or LC or sfari))
   candidate        <- not high-confidence and at least one flag
   no reported evidence <- no flag
 
@@ -67,7 +67,7 @@ def classify(f):
     high = (f["GeneTrek_HC"] | f["SFARI_plus"]
             | (f["Orphanet_neuro"] & f["Orphanet_develop"])
             | (f["SanchisJuan"] & (f["Orphanet_neuro"] | f["Orphanet_develop"]
-                                   | f["GeneTrek_LC"] | sfari_any)))
+                                   | f["GeneTrek_LC"] | f["SFARI_other"])))
     return pd.Series(np.where(high, "curated",
                               np.where(f.any(axis=1), "candidate", "no_evidence")),
                      index=f.index)
@@ -197,7 +197,7 @@ def main():
         "R2: sfari+ (SFARI entry assigning score 2)": f["SFARI_plus"],
         "R3: Orphanet neurological AND developmental": f["Orphanet_neuro"] & f["Orphanet_develop"],
         "R4: Sanchis-Juan AND >=1 supporting source": f["SanchisJuan"] & (
-            f["Orphanet_neuro"] | f["Orphanet_develop"] | f["GeneTrek_LC"] | sfari_any),
+            f["Orphanet_neuro"] | f["Orphanet_develop"] | f["GeneTrek_LC"] | f["SFARI_other"]),
     })
     hc = rule == "curated"
     n_rules = rules[hc].sum(axis=1)
@@ -229,12 +229,11 @@ def main():
         ("sfari+ gene?", f["SFARI_plus"], "Rule R2"),
         ("Orphanet neurological AND developmental\n(NEU and DEV)?",
          f["Orphanet_neuro"] & f["Orphanet_develop"], "Rule R3"),
-        ("Sanchis-Juan (SJ) AND at least one of\nNEU, DEV, LC, sfari+, sfari?",
+        ("Sanchis-Juan (SJ) AND at least one of\nNEU, DEV, LC, sfari?",
          f["SanchisJuan"] & (f["Orphanet_neuro"] | f["Orphanet_develop"]
-                             | f["GeneTrek_LC"] | sfari_any), "Rule R4"),
-        # HC genes have all left at R1, so HC is not re-tested here
-        ("Any source flag\n(LC, NEU, DEV, SJ, sfari+, sfari)?",
-         f.drop(columns="GeneTrek_HC").any(axis=1), "Remaining genes"),
+                             | f["GeneTrek_LC"] | f["SFARI_other"]), "Rule R4"),
+        ("Any source flag\n(HC, LC, NEU, DEV, SJ, sfari+, sfari)?", f.any(axis=1),
+         "Remaining genes"),
     ]
     tree = []
     for q, cond, lab in qs:
