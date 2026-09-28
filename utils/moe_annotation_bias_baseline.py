@@ -12,11 +12,14 @@ curation rather than any specific NDD evidence:
   - PubMed citation count (n_pubmed: from NCBI's gene2pubmed)
   - random ranking (a permuted copy of MOE_score, as a null baseline)
 
-For each predictor (single-variable logistic regression) reports its own
-ROC-AUC / PR-AUC on the same candidate-only outcome MOE is validated
-against elsewhere (see moe_clinvar_validation.py), so ROC curves can be
-compared directly on one plot: if MOE's curve does not clearly exceed the
-annotation-count and PubMed-count curves, the reviewer's concern stands.
+For each predictor, ROC-AUC / PR-AUC is computed by sweeping the raw
+predictor's own value as the classification threshold directly (AUC is
+invariant to monotonic score transforms, so this gives the same AUC a
+single-variable logistic regression on that predictor would) on the same
+candidate-only outcome MOE is validated against elsewhere (see
+moe_clinvar_validation.py), so ROC curves can be compared directly on one
+plot: if MOE's curve does not clearly exceed the annotation-count and
+PubMed-count curves, the reviewer's concern stands.
 
 Then fits the WS4.7 adjusted model:
   ClinVar_P/LP ~ MOE_score + log1p(n_go_annotations) + log1p(n_pubmed)
