@@ -272,8 +272,16 @@ def main():
     # facecolor to UpSet() directly, which triggers a pandas-version styling bug in
     # upsetplot 0.9.0's fillna(..., inplace=True) chained-assignment path).
     if "intersections" in axes:
-        for bar in axes["intersections"].patches:
+        inter_ax = axes["intersections"]
+        for bar in inter_ax.patches:
             bar.set_facecolor('#4689a3')
+        # upsetplot only draws the left spine by default; add the remaining three so the
+        # intersection-size bar chart reads as a fully bordered plot, matching its width
+        # to the membership matrix below it.
+        for spine in inter_ax.spines.values():
+            spine.set_visible(True)
+            spine.set_color('#333333')
+            spine.set_linewidth(1.0)
 
     # Total set size per category, printed to the right of each matrix row (in place of
     # the removed left-hand totals bar chart).
