@@ -35,6 +35,12 @@ import os
 import sys
 
 import numpy as np
+
+# numpy.trapezoid is the renamed numpy.trapz, available only from NumPy 2.0
+# onward; numpy.trapz itself is deprecated in 2.x but still present, and is
+# the only name available on older NumPy. Resolve whichever exists so this
+# runs on either.
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 import pandas as pd
 from scipy.stats import fisher_exact
 
@@ -162,12 +168,12 @@ def main():
     order = np.argsort(fpr_pts)
     fpr_sorted = np.array(fpr_pts)[order]
     tpr_sorted = np.array(tpr_pts)[order]
-    roc_auc = np.trapezoid(tpr_sorted, fpr_sorted)
+    roc_auc = _trapezoid(tpr_sorted, fpr_sorted)
 
     order_pr = np.argsort(rec_pts)
     rec_sorted = np.array(rec_pts)[order_pr]
     prec_sorted = np.array(prec_pts)[order_pr]
-    pr_auc = np.trapezoid(prec_sorted, rec_sorted)
+    pr_auc = _trapezoid(prec_sorted, rec_sorted)
 
     import matplotlib
     matplotlib.use("Agg")

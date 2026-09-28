@@ -42,6 +42,12 @@ import os
 import sys
 
 import numpy as np
+
+# numpy.trapezoid is the renamed numpy.trapz, available only from NumPy 2.0
+# onward; numpy.trapz itself is deprecated in 2.x but still present, and is
+# the only name available on older NumPy. Resolve whichever exists so this
+# runs on either.
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 import pandas as pd
 import statsmodels.api as sm
 from scipy.stats import spearmanr
@@ -65,9 +71,9 @@ def roc_pr_points(score, true_pos):
         prec.append(tp / (tp + fp) if (tp + fp) else 1.0)
         rec.append(tp / n_pos if n_pos else 0.0)
     order = np.argsort(fpr)
-    roc_auc = np.trapezoid(np.array(tpr)[order], np.array(fpr)[order])
+    roc_auc = _trapezoid(np.array(tpr)[order], np.array(fpr)[order])
     order_pr = np.argsort(rec)
-    pr_auc = np.trapezoid(np.array(prec)[order_pr], np.array(rec)[order_pr])
+    pr_auc = _trapezoid(np.array(prec)[order_pr], np.array(rec)[order_pr])
     return (np.array(fpr)[order], np.array(tpr)[order], roc_auc), (np.array(rec)[order_pr], np.array(prec)[order_pr], pr_auc)
 
 
