@@ -15,6 +15,12 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
     convention (p-values below the diagonal, odds ratios above it, same
     threshold-diverging blue/white/red color scale).
 
+    Odds ratios are reported as odds(column category) / odds(row category),
+    i.e. higher category over lower category once the categories are sorted
+    ascending, so an OR above 1 in the upper triangle means the binary outcome
+    is more frequent in the higher category. Cells mirrored across the diagonal
+    are reciprocals of one another.
+
     Args:
         filename: Path to input file (CSV, Excel, or TSV)
         category_col: 1-based column index for categories
@@ -90,7 +96,12 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
             if i < j:
                 k1, n1 = category_data[cat1]
                 k2, n2 = category_data[cat2]
-                table = [[k1, n1 - k1], [k2, n2 - k2]]
+                # Categories are sorted ascending, so cat2 is the higher tier.
+                # Put it in the first row so the odds ratio reads as
+                # odds(higher tier) / odds(lower tier): OR > 1 means the
+                # outcome is more frequent in the higher category, which is the
+                # direction the MOE-tier comparisons are interpreted in.
+                table = [[k2, n2 - k2], [k1, n1 - k1]]
                 odds_ratio, p_value = fisher_exact(table)
 
                 epsilon = 1e-300
@@ -117,7 +128,7 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
                     'Significance': '***' if p_value < 0.001 else '**' if p_value < 0.01 else '*' if p_value < 0.05 else 'ns'
                 })
 
-    print("\nOdds Ratio Matrix (row category vs column category):")
+    print("\nOdds Ratio Matrix (column category vs row category):")
     print("-"*80)
     header = "Category".ljust(12)
     for cat in categories:
