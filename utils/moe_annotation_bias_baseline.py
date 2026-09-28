@@ -44,6 +44,7 @@ import sys
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from scipy.stats import spearmanr
 
 
 def roc_pr_points(score, true_pos):
@@ -143,6 +144,26 @@ def main():
     n = len(df)
     print(f"Genes analyzed: {n:,}{' (Class = ' + args.class_filter + ')' if args.class_filter else ''}")
     print(f"ClinVar-positive prevalence: {true_pos.sum():,}/{n:,} ({true_pos.mean() * 100:.1f}%)\n")
+
+    # Reviewer R2.9 asks literally whether the MOE score correlates with
+    # annotation density per gene. Report that directly (Spearman, since MOE is
+    # a 0-5 ordinal and the count variables are heavily right-skewed) before
+    # moving on to the harder question of whether MOE beats those counts as a
+    # predictor. A 95% CI is obtained from the Fisher z-transform of rho.
+    corr_rows = []
+    for label in ("n_go_annotations", "n_pubmed"):
+        rho, p_rho = spearmanr(df["MOE_score"], df[label])
+        se = 1.0 / np.sqrt(n - 3)
+        z = np.arctanh(rho)
+        lo, hi = np.tanh(z - 1.96 * se), np.tanh(z + 1.96 * se)
+        corr_rows.append({"variable": label, "n": n, "spearman_rho": rho,
+                          "rho_ci_low": lo, "rho_ci_high": hi, "p_value": p_rho})
+    corr_table = pd.DataFrame(corr_rows)
+    print("Spearman correlation of MOE score with annotation density:")
+    print(corr_table.to_string(index=False))
+    out_corr = os.path.join(args.output_dir, "moe_annotation_density_correlations.tsv")
+    corr_table.to_csv(out_corr, sep="\t", index=False, float_format="%.4g")
+    print(f"\nCorrelation table saved to: {out_corr}\n")
 
     rng = np.random.default_rng(args.seed)
     permuted_moe = rng.permutation(df["MOE_score"].to_numpy())

@@ -850,7 +850,8 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- Table S9: MOE threshold operating characteristics against ClinVar P/LP\n")
         f.write("- Table S10: MOE vs ClinVar P/LP adjusted for gnomAD pLI (logistic regression)\n")
         f.write("- Table S11: ROC/PR AUC of MOE vs annotation-density baselines\n")
-        f.write("- Table S12: MOE vs ClinVar P/LP adjusted for GO and PubMed counts\n\n")
+        f.write("- Table S12: MOE vs ClinVar P/LP adjusted for GO and PubMed counts\n")
+        f.write("- Table S13: Spearman correlation of MOE with GO and PubMed annotation density\n\n")
         f.write("### Validation (generated in Step 6)\n")
         f.write("- Independent validation of the MOE score against ClinVar P/LP status,\n")
         f.write("  gnomAD pLI constraint and annotation-density baselines\n\n")
@@ -1174,6 +1175,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "moe_pli_logistic_regression.tsv", "table_s10.tsv"),
         (validation_dir / "moe_annotation_bias_baseline_auc.tsv", "table_s11.tsv"),
         (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
+        (validation_dir / "moe_annotation_density_correlations.tsv", "table_s13.tsv"),
     ]
     for src_file, new_name in validation_tables:
         if copy_file(src_file, tables_dir, new_name):
