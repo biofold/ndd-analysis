@@ -232,8 +232,9 @@ def main():
         ("Sanchis-Juan (SJ) AND at least one of\nNEU, DEV, LC, SF?",
          f["SanchisJuan"] & (f["Orphanet_neuro"] | f["Orphanet_develop"]
                              | f["GeneTrek_LC"] | f["SFARI_other"]), "Rule R4"),
-        ("Any source flag\n(HC, LC, NEU, DEV, SJ, SF1, SF)?", f.any(axis=1),
-         "Remaining genes"),
+        # HC and SF1 genes have all left at R1/R2, so they are not re-tested here
+        ("Any remaining source flag\n(LC, NEU, DEV, SJ, SF)?",
+         f.drop(columns=["GeneTrek_HC", "SFARI_plus"]).any(axis=1), "Remaining genes"),
     ]
     tree = []
     for q, cond, lab in qs:
