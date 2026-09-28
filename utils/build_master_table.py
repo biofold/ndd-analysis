@@ -220,6 +220,30 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     else:
         master["n_pubmed"] = 0
 
+    # --- HPO phenotype breadth and ClinGen haploinsufficiency ---
+    # Only the counts/score are carried here; the full HPO term lists are large
+    # and live in data/gene_hpo_terms.tsv for anyone who needs them.
+    hpo = read_table(os.path.join(data_dir, "gene_hpo_terms.tsv"))
+    if hpo is not None and "n_hpo_terms" in hpo.columns:
+        hpo = hpo[hpo["Gene"] != "-"]
+        master = master.merge(
+            hpo[["Gene", "n_hpo_terms"]].drop_duplicates("Gene"), on="Gene", how="left"
+        )
+        master["n_hpo_terms"] = (
+            pd.to_numeric(master["n_hpo_terms"], errors="coerce").fillna(0).astype(int)
+        )
+    else:
+        master["n_hpo_terms"] = 0
+
+    clingen = read_table(os.path.join(data_dir, "gene_clingen_hi.tsv"))
+    if clingen is not None and "ClinGen_HI_score" in clingen.columns:
+        master = master.merge(
+            clingen[["Gene", "ClinGen_HI_score"]].drop_duplicates("Gene"),
+            on="Gene", how="left",
+        )
+    else:
+        master["ClinGen_HI_score"] = pd.NA
+
     # --- write the master table ---
     os.makedirs(output_dir, exist_ok=True)
     master_path = os.path.join(output_dir, "ndd_master_table.tsv")
