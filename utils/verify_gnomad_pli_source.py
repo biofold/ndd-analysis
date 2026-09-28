@@ -2,10 +2,19 @@
 """
 Cross-validate the gnomAD_pLI values pulled from dbNSFP
 (extract_gnomad_pli.py's output, ultimately a v2.1.1 value) against
-gnomAD's own primary gene constraint release -- by default the current
-v4.1 constraint table (which incorporates the "v4.1.1" constraint-table
-fix; gnomAD publishes patches in place at the same v4.1 path rather
-than under a separate v4.1.1-named file/object).
+gnomAD's own primary gene constraint release -- by default the v4.1
+constraint table at release/4.1/constraint/ on gnomAD's AWS bucket.
+
+NOTE ON v4.1 vs v4.1.1: gnomAD's bucket also has a genuinely separate
+release/4.1.1/constraint/gnomad.v4.1.1.constraint_metrics.ht/ object
+(confirmed present via a bucket listing, dated 2026-03-25 -- NOT the
+same object as the v4.1 file used here, and NOT simply a same-path
+in-place patch as an earlier version of this docstring incorrectly
+claimed). That object is in Hail-native Table format (.ht/), not a
+flat TSV, so it cannot be read with plain pandas.read_csv -- reading it
+requires the `hail` package. This script does NOT currently fetch the
+true v4.1.1 file; it uses v4.1. If you need the actual v4.1.1 values,
+install hail and read the .ht table, or ask for that to be added here.
 
 Why this exists: dbNSFP is a secondary aggregator that repackages many
 annotation sources, including gnomAD's constraint metrics, and its
