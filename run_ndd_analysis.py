@@ -1144,14 +1144,19 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
 
     # Part E: per-tier distributions and pairwise tests (R2.10)
     print("\n--- Part E: Per-tier distributions and pairwise tests (R2.10) ---", file=sys.stderr)
+    # The MOE tiers are ordered, so the ClinVar comparison is run one-sided in
+    # the direction the odds ratio is reported (higher tier enriched); the
+    # continuous pLI comparison uses the two-sided KS test as before.
     tier_analyses = [
-        (violin_script, pli_input, "moe_pli_violin", "pLI violin by MOE tier"),
-        (ks_test_script, pli_input, "moe_pli_ks", "pLI KS matrix by MOE tier"),
-        (bar_script, clinvar_input, "moe_clinvar_bar", "ClinVar proportion by MOE tier"),
-        (fisher_test_script, clinvar_input, "moe_clinvar_fisher", "ClinVar Fisher matrix by MOE tier"),
-        (roc_pr_script, clinvar_input, "moe_clinvar_rocpr", "MOE ROC/PR against ClinVar P/LP"),
+        (violin_script, pli_input, "moe_pli_violin", "pLI violin by MOE tier", []),
+        (ks_test_script, pli_input, "moe_pli_ks", "pLI KS matrix by MOE tier", []),
+        (bar_script, clinvar_input, "moe_clinvar_bar", "ClinVar proportion by MOE tier", []),
+        (fisher_test_script, clinvar_input, "moe_clinvar_fisher",
+         "ClinVar Fisher matrix by MOE tier", ["--alternative", "greater"]),
+        (roc_pr_script, clinvar_input, "moe_clinvar_rocpr",
+         "MOE ROC/PR against ClinVar P/LP", []),
     ]
-    for script, input_file, stem, label in tier_analyses:
+    for script, input_file, stem, label, extra_args in tier_analyses:
         if not Path(script).exists():
             sys.stderr.write(f"Warning: {script} not found; skipping {label}\n")
             continue
@@ -1160,7 +1165,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
             str(input_file), "2", "3",
             str(figures_dir / f"{stem}.txt"),
             "--png"
-        ], step_name=f"Generating {label}", env_name=conda_env)
+        ] + extra_args, step_name=f"Generating {label}", env_name=conda_env)
 
     # Part F: promote the validation tables into docs/tables with table numbers
     print("\n--- Part F: Copying validation tables ---", file=sys.stderr)

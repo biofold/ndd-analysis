@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.patches import Rectangle
 
-def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0.05, save_heatmap=True, save_pdf=True, save_png=False):
+def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0.05, save_heatmap=True, save_pdf=True, save_png=False, alternative="greater"):
     """
     Perform pairwise Fisher's exact tests between categories on a binary (0/1)
     outcome and visualize results, mirroring ks-test.py's combined-heatmap
@@ -20,6 +20,14 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
     ascending, so an OR above 1 in the upper triangle means the binary outcome
     is more frequent in the higher category. Cells mirrored across the diagonal
     are reciprocals of one another.
+
+    The test is ONE-SIDED by default (alternative="greater"): for each pair it
+    asks whether the outcome is more frequent in the higher category, which is
+    the directional hypothesis the ordered MOE tiers are compared under, and it
+    is the same direction the reported odds ratio is written in. Pass
+    --alternative two-sided for the non-directional test. Because one test is
+    run per unordered pair, the single directional p-value is mirrored into
+    both triangles of the matrix.
 
     Args:
         filename: Path to input file (CSV, Excel, or TSV)
@@ -81,6 +89,10 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
 
     print("\n" + "="*80)
     print("PAIRWISE FISHER'S EXACT TEST RESULTS")
+    if alternative == "greater":
+        print("Alternative: greater (one-sided; outcome more frequent in the higher category)")
+    else:
+        print(f"Alternative: {alternative}")
     print("="*80)
 
     n_categories = len(categories)
@@ -102,7 +114,10 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
                 # outcome is more frequent in the higher category, which is the
                 # direction the MOE-tier comparisons are interpreted in.
                 table = [[k2, n2 - k2], [k1, n1 - k1]]
-                odds_ratio, p_value = fisher_exact(table)
+                # With the higher category in the first row, alternative="greater"
+                # tests exactly the directional hypothesis the odds ratio states:
+                # the outcome is more frequent in the higher category.
+                odds_ratio, p_value = fisher_exact(table, alternative=alternative)
 
                 epsilon = 1e-300
                 neg_log_pvalue = -np.log10(max(p_value, epsilon))
@@ -211,11 +226,11 @@ def pairwise_fisher_test(filename, category_col, score_col, output_file, alpha=0
     print(f"\n✓ Results saved to: {output_file}")
 
     if save_heatmap and n_categories > 1:
-        create_combined_heatmap(or_matrix, pvalue_matrix, categories, cat_col_name, score_col_name, pdf_file, alpha, save_pdf, save_png)
+        create_combined_heatmap(or_matrix, pvalue_matrix, categories, cat_col_name, score_col_name, pdf_file, alpha, save_pdf, save_png, alternative)
 
     return results_df, or_matrix, pvalue_matrix
 
-def create_combined_heatmap(or_matrix, pvalue_matrix, categories, cat_col_name, score_col_name, pdf_file, alpha=0.05, save_pdf=True, save_png=False):
+def create_combined_heatmap(or_matrix, pvalue_matrix, categories, cat_col_name, score_col_name, pdf_file, alpha=0.05, save_pdf=True, save_png=False, alternative="greater"):
     """
     Create a combined heatmap with p-values below diagonal and odds ratios
     above diagonal, using the same threshold-diverging colormap as
@@ -329,7 +344,11 @@ def create_combined_heatmap(or_matrix, pvalue_matrix, categories, cat_col_name, 
     ax.set_yticklabels(labels, fontsize=18)
     ax.set_xlabel(cat_col_name, fontsize=18, labelpad=10)
     ax.set_ylabel(cat_col_name, fontsize=18, labelpad=10)
-    ax.set_title(f'Pairwise Fisher\'s Exact Test Results\n{score_col_name} Proportion Comparison',
+    tail = ('one-sided, higher category enriched' if alternative == 'greater'
+            else 'one-sided, lower category enriched' if alternative == 'less'
+            else 'two-sided')
+    ax.set_title(f'Pairwise Fisher\'s Exact Test Results\n'
+                 f'{score_col_name} Proportion Comparison ({tail})',
                  fontsize=18, fontweight='normal', pad=15)
 
     ax.grid(False)
@@ -368,6 +387,24 @@ def main():
     if save_png:
         sys.argv = [a for a in sys.argv if a != "--png"]
 
+    # Optional --alternative {greater,less,two-sided}. Default is the one-sided
+    # "greater" test: categories are sorted ascending and the higher one is put
+    # in the first row of the contingency table, so this asks whether the binary
+    # outcome is more frequent in the higher category -- the same direction the
+    # reported odds ratio is written in.
+    alternative = "greater"
+    if "--alternative" in sys.argv:
+        idx = sys.argv.index("--alternative")
+        if idx + 1 >= len(sys.argv):
+            print("Error: --alternative requires a value "
+                  "(greater, less or two-sided).", file=sys.stderr)
+            sys.exit(1)
+        alternative = sys.argv[idx + 1]
+        if alternative not in ("greater", "less", "two-sided"):
+            print(f"Error: unknown --alternative '{alternative}' "
+                  "(expected greater, less or two-sided).", file=sys.stderr)
+            sys.exit(1)
+        del sys.argv[idx:idx + 2]
 
     if len(sys.argv) >= 4:
         filename = sys.argv[1]
@@ -395,7 +432,7 @@ def main():
             print("Error: Invalid input.")
             return
 
-    pairwise_fisher_test(filename, category_col, score_col, output_file, alpha, save_heatmap=True, save_pdf=True, save_png=save_png)
+    pairwise_fisher_test(filename, category_col, score_col, output_file, alpha, save_heatmap=True, save_pdf=True, save_png=save_png, alternative=alternative)
 
 if __name__ == "__main__":
     required_packages = ['pandas', 'numpy', 'scipy', 'matplotlib']
