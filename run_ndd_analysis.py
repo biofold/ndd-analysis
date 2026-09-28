@@ -946,6 +946,12 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
         ("GO_Biological_Process_2026", "GO_BP", "1"),
         ("GO_Cellular_Component_2026", "GO_CC", "1"),
         ("GO_Molecular_Function_2026", "GO_MF", "1"),
+        # GO Slim: the redundancy-reduced counterpart to the three full-GO
+        # sheets above (reviewer point R1.2 asks for a redundancy-reduction
+        # step; GOslim collapses GO_BP's ~5,200 curated-set terms to 66).
+        ("GOslim_Biological_Process_2026", "GOslim_BP", "1"),
+        ("GOslim_Cellular_Component_2026", "GOslim_CC", "1"),
+        ("GOslim_Molecular_Function_2026", "GOslim_MF", "1"),
         ("KEGG_2021_Human", "KEGG", "1"),
         ("Reactome_Pathways_2024", "Reactome", "1"),
         ("SynGO_2024", "SynGO", "1"),
