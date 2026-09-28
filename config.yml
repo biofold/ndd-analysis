@@ -21,6 +21,9 @@ libraries_enrichment:
   - GO_Biological_Process_Cancer_2026
   - GO_Cellular_Component_2026
   - GO_Molecular_Function_2026
+  - GOslim_Biological_Process_2026
+  - GOslim_Cellular_Component_2026
+  - GOslim_Molecular_Function_2026
   - KEGG_2021_Human
   - Reactome_Pathways_2024
   - SynGO_2024
