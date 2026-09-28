@@ -59,8 +59,8 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
             # Create an empty output file to maintain consistency
             output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
             empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value",
-                                             "Adjusted P-value", "Odds Ratio", "Combined Score",
-                                             "OR_CI_low", "OR_CI_high"])
+                                             "Adjusted P-value", "Odds Ratio",
+                                             "OR_CI_low", "OR_CI_high", "Combined Score"])
             empty_df.to_csv(output_file, sep="\t", index=False)
             continue
         
@@ -81,8 +81,8 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
             # Create an empty output file
             output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
             empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value",
-                                             "Adjusted P-value", "Odds Ratio", "Combined Score",
-                                             "OR_CI_low", "OR_CI_high"])
+                                             "Adjusted P-value", "Odds Ratio",
+                                             "OR_CI_low", "OR_CI_high", "Combined Score"])
             empty_df.to_csv(output_file, sep="\t", index=False)
             continue
 
@@ -92,8 +92,8 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
             sys.stderr.write(f"No matching annotation for gene list {basename}.\n")
             # Create an empty output file
             empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value",
-                                             "Adjusted P-value", "Odds Ratio", "Combined Score",
-                                             "OR_CI_low", "OR_CI_high"])
+                                             "Adjusted P-value", "Odds Ratio",
+                                             "OR_CI_low", "OR_CI_high", "Combined Score"])
             empty_df.to_csv(output_file, sep="\t", index=False)
             continue
         

@@ -63,6 +63,18 @@ def odds_ratio_ci(a, b, c, d):
     return np.exp(log_or - 1.96 * se_log_or), np.exp(log_or + 1.96 * se_log_or)
 
 
+def _reorder_ci_columns(df):
+    """Move OR_CI_low/OR_CI_high to sit immediately after 'Odds Ratio'
+    (falls back to leaving them at the end if that column is absent)."""
+    cols = [c for c in df.columns if c not in ("OR_CI_low", "OR_CI_high")]
+    if "Odds Ratio" in cols:
+        insert_at = cols.index("Odds Ratio") + 1
+        cols = cols[:insert_at] + ["OR_CI_low", "OR_CI_high"] + cols[insert_at:]
+    else:
+        cols = cols + ["OR_CI_low", "OR_CI_high"]
+    return df[cols]
+
+
 def add_ci(df, list_size, background_size, on_bad_row="raise"):
     """Append OR_CI_low/OR_CI_high to an Enrichr/gseapy results dataframe.
 
@@ -78,7 +90,7 @@ def add_ci(df, list_size, background_size, on_bad_row="raise"):
         df = df.copy()
         df["OR_CI_low"] = pd.Series(dtype=float)
         df["OR_CI_high"] = pd.Series(dtype=float)
-        return df
+        return _reorder_ci_columns(df)
 
     k = df["Overlap"].str.split("/").str[0].astype(int)
     n = df["Overlap"].str.split("/").str[1].astype(int)
@@ -111,7 +123,7 @@ def add_ci(df, list_size, background_size, on_bad_row="raise"):
         ci_low.loc[idx], ci_high.loc[idx] = odds_ratio_ci(ai, bi, ci_, di)
     df["OR_CI_low"] = ci_low
     df["OR_CI_high"] = ci_high
-    return df
+    return _reorder_ci_columns(df)
 
 
 if __name__ == "__main__":
