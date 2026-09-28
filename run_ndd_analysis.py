@@ -974,6 +974,16 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
             
             if file_path.exists():
                 excel_files.append(f"{file_path}:{sheet_name}:{header}")
+            else:
+                # Silently omitting a missing sheet here is exactly the failure
+                # mode that hides a stale results/ directory (step 1 not yet
+                # rerun after a libraries_enrichment/pipeline change) -- make
+                # it loud instead.
+                sys.stderr.write(
+                    f"  ⚠ Warning: {file_path} not found; sheet '{sheet_name}' "
+                    f"will be MISSING from {gene_set['excel_name']}. Re-run step 1 "
+                    f"(enrichment) if this library was recently added.\n"
+                )
         
         if excel_files:
             excel_output = docs_dir / gene_set['excel_name']
