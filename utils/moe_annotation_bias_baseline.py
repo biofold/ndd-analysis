@@ -156,8 +156,12 @@ def main():
         se = 1.0 / np.sqrt(n - 3)
         z = np.arctanh(rho)
         lo, hi = np.tanh(z - 1.96 * se), np.tanh(z + 1.96 * se)
+        # scipy returns exactly 0.0 when the p-value underflows double
+        # precision; reporting "p = 0" in a supplementary table is misleading,
+        # so record the representable bound instead.
+        p_display = f"{p_rho:.4g}" if p_rho > 0 else "<2.2e-308"
         corr_rows.append({"variable": label, "n": n, "spearman_rho": rho,
-                          "rho_ci_low": lo, "rho_ci_high": hi, "p_value": p_rho})
+                          "rho_ci_low": lo, "rho_ci_high": hi, "p_value": p_display})
     corr_table = pd.DataFrame(corr_rows)
     print("Spearman correlation of MOE score with annotation density:")
     print(corr_table.to_string(index=False))
