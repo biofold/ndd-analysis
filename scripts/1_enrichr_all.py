@@ -11,6 +11,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns  # For heatmap visualization
 
+# utils/enrichment/enrichr_odds_ratio_ci.py appends a 95% CI to the Odds Ratio
+# column (reviewer point R1.2: "Report effect sizes, gene counts and
+# confidence intervals"). It lives under utils/, a sibling of scripts/, so add
+# it to sys.path relative to this file rather than assuming a fixed layout.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "utils" / "enrichment"))
+from enrichr_odds_ratio_ci import add_ci  # noqa: E402
+
 
 def read_gene_list(file_path):
     """
@@ -51,8 +58,9 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
             sys.stderr.write(f"Warning: Gene list {basename} is empty. Skipping enrichment for {library}.\n")
             # Create an empty output file to maintain consistency
             output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
-            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value", 
-                                             "Adjusted P-value", "Odds Ratio", "Combined Score"])
+            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value",
+                                             "Adjusted P-value", "Odds Ratio", "Combined Score",
+                                             "OR_CI_low", "OR_CI_high"])
             empty_df.to_csv(output_file, sep="\t", index=False)
             continue
         
@@ -72,8 +80,9 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
             sys.stderr.write(f"Error during enrichment for {basename} with {library}: {e}\n")
             # Create an empty output file
             output_file = os.path.join(output_dir, f"{basename}_{library}.tsv")
-            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value", 
-                                             "Adjusted P-value", "Odds Ratio", "Combined Score"])
+            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value",
+                                             "Adjusted P-value", "Odds Ratio", "Combined Score",
+                                             "OR_CI_low", "OR_CI_high"])
             empty_df.to_csv(output_file, sep="\t", index=False)
             continue
 
@@ -82,12 +91,20 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
         if enr_results.res2d is None or len(enr_results.res2d) == 0:
             sys.stderr.write(f"No matching annotation for gene list {basename}.\n")
             # Create an empty output file
-            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value", 
-                                             "Adjusted P-value", "Odds Ratio", "Combined Score"])
+            empty_df = pd.DataFrame(columns=["Gene_set", "Term", "Overlap", "P-value",
+                                             "Adjusted P-value", "Odds Ratio", "Combined Score",
+                                             "OR_CI_low", "OR_CI_high"])
             empty_df.to_csv(output_file, sep="\t", index=False)
             continue
         
         enr_results.res2d = enr_results.res2d.sort_values(by=["Adjusted P-value", "Odds Ratio"], ascending=[True, False])
+        # list_size/background_size are exactly the sizes gseapy used for this
+        # call, so the 2x2 table reconstructed from Overlap is exact, not an
+        # approximation from a size passed in separately.
+        enr_results.res2d = add_ci(
+            enr_results.res2d, list_size=len(gene_list), background_size=len(background),
+            on_bad_row="nan",
+        )
         enr_results.res2d.to_csv(output_file, sep="\t", index=False)
         sys.stderr.write(f"  Results saved to {output_file}\n")
 

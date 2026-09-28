@@ -18,26 +18,26 @@ Raw source files (tracked via Git LFS, see .gitattributes) live in `data/raw/`:
 
 1. `data/raw/dbNSFP5.2_gene.gz` -- dbNSFP5.2 gene-level annotation table
    (downloaded 2026-09-27 from https://dbnsfp.s3.amazonaws.com/, ~22MB).
-   Source of `gene_gnomad_pli.tsv` via `utils/extract_gnomad_pli.py`.
+   Source of `gene_gnomad_pli.tsv` via `utils/data_extraction/extract_gnomad_pli.py`.
 2. `data/raw/variant_summary_20260924.txt.gz` -- NCBI ClinVar's weekly
    variant_summary release (downloaded 2026-09-28; NCBI's
    Last-Modified header on the file itself reads 2026-09-24, ~430MB).
    Source of `clinvar_plp_variants.tsv` / `clinvar_plp_gene_counts.tsv`
-   via `utils/extract_clinvar_plp.py`.
+   via `utils/data_extraction/extract_clinvar_plp.py`.
 
 Derived per-gene/per-variant tables (regenerate with the commands below):
 
 3. `data/gene_gnomad_pli.tsv` -- one row per dbNSFP gene (40,225 rows):
    Gene, gnomAD_pLI, RVIS_percentile_ExAC, HIPred, GHIS,
    ClinGen_Haploinsufficiency_Score.
-   `python utils/extract_gnomad_pli.py --dbnsfp-gene-file data/raw/dbNSFP5.2_gene.gz --output data/gene_gnomad_pli.tsv`
+   `python utils/data_extraction/extract_gnomad_pli.py --dbnsfp-gene-file data/raw/dbNSFP5.2_gene.gz --output data/gene_gnomad_pli.tsv`
 4. `data/clinvar_plp_variants.tsv` -- 366,744 ClinVar variant records
    classified Pathogenic/Likely-pathogenic by the text-based rule
-   (see utils/extract_clinvar_plp.py docstring for why ClinSigSimple
+   (see utils/data_extraction/extract_clinvar_plp.py docstring for why ClinSigSimple
    alone is not used), GRCh38 only.
 5. `data/clinvar_plp_gene_counts.tsv` -- per-gene rollup of (4):
    Gene, n_pathogenic_likely_pathogenic, n_plp_ge1star.
-   `python utils/extract_clinvar_plp.py --input data/raw/variant_summary_20260924.txt.gz --output-prefix data/clinvar_plp`
+   `python utils/data_extraction/extract_clinvar_plp.py --input data/raw/variant_summary_20260924.txt.gz --output-prefix data/clinvar_plp`
    (or pass `--url` with no value to fetch the current release fresh
    from NCBI instead of using the checked-in copy).
 
@@ -48,7 +48,7 @@ exact value match on gnomAD_pLI for spot-checked genes).
 ### Provenance check: dbNSFP's gnomAD_pLI vs gnomAD's own release
 
 `gnomAD_pLI` (as pulled from dbNSFP above) is specifically gnomAD's
-**v2.1.1** pLI value. `utils/verify_gnomad_pli_source.py` fetches
+**v2.1.1** pLI value. `utils/data_extraction/verify_gnomad_pli_source.py` fetches
 gnomAD's own gene constraint table directly (from gnomAD's AWS Open
 Data bucket, arn:aws:s3:::gnomad-public-us-east-1) and compares:
 
@@ -71,7 +71,7 @@ Data bucket, arn:aws:s3:::gnomad-public-us-east-1) and compares:
   v2.1.1 value throughout this pipeline; switching to v4.1 would
   require re-baselining every downstream analysis, not just adding a
   check.
-  `python utils/verify_gnomad_pli_source.py --version 4.1 --input data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --dbnsfp-pli-table data/gene_gnomad_pli.tsv`
+  `python utils/data_extraction/verify_gnomad_pli_source.py --version 4.1 --input data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --dbnsfp-pli-table data/gene_gnomad_pli.tsv`
 
 ## HPO and ClinGen haploinsufficiency (moved off dbNSFP to primary sources)
 
@@ -82,20 +82,20 @@ directly from their own primary databases instead:
 - `data/raw/genes_to_phenotype_20260928.txt.gz` -- HPO's own
   gene-to-phenotype annotation file (downloaded 2026-09-28 from
   https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/genes_to_phenotype.txt).
-  `utils/extract_hpo_terms.py` dedups by (gene_symbol, hpo_id) -- 18.0%
+  `utils/data_extraction/extract_hpo_terms.py` dedups by (gene_symbol, hpo_id) -- 18.0%
   of raw rows are duplicates via >1 source disease -- and upper-cases
   gene symbols to HGNC convention. Result: `data/gene_hpo_terms.tsv`.
   SCN2A: 208 terms direct vs 162 from dbNSFP's stale snapshot.
-  `python utils/extract_hpo_terms.py --genes-to-phenotype-file data/raw/genes_to_phenotype_20260928.txt.gz --output data/gene_hpo_terms.tsv`
+  `python utils/data_extraction/extract_hpo_terms.py --genes-to-phenotype-file data/raw/genes_to_phenotype_20260928.txt.gz --output data/gene_hpo_terms.tsv`
 - `data/raw/clingen_dosage_sensitivity_20260928.tsv` -- ClinGen's own
   dosage-sensitivity curation export (downloaded 2026-09-28 from
   https://search.clinicalgenome.org/kb/gene-dosage/download).
-  `utils/extract_clingen_hi.py` maps ClinGen's text evidence categories
+  `utils/data_extraction/extract_clingen_hi.py` maps ClinGen's text evidence categories
   to the standard 0-3/30/40 numeric scale (verified empirically against
   dbNSFP: 99.2% agreement across 1,559 comparable genes; the 0.8% that
   differ are genes ClinGen has re-curated since dbNSFP's snapshot).
   Result: `data/gene_clingen_hi.tsv`.
-  `python utils/extract_clingen_hi.py --clingen-dosage-file data/raw/clingen_dosage_sensitivity_20260928.tsv --output data/gene_clingen_hi.tsv`
+  `python utils/data_extraction/extract_clingen_hi.py --clingen-dosage-file data/raw/clingen_dosage_sensitivity_20260928.tsv --output data/gene_clingen_hi.tsv`
 
 Both were deployed to the live master table and MongoDB on 2026-09-28
 (verified live: SCN2A now shows 208 HPO terms and ClinGen HI score 3.0
