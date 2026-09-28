@@ -33,7 +33,7 @@ seven source flags:
      GeneTrek / Sanchis-Juan).
 
 Rule (Table 1), with HC = GeneTrek high-confidence, LC = GeneTrek candidate:
-  high-confidence  <- HC or SFARI score 1 ("sfari+") or (Orphanet neuro and
+  high-confidence  <- HC or sfari+ (SFARI entry assigning score 2) or (Orphanet neuro and
                       Orphanet develop) or (Sanchis-Juan and (neuro or develop
                       or LC or any SFARI))
   candidate        <- not high-confidence and at least one flag
@@ -143,8 +143,8 @@ def plot_decision_tree(steps, out_png):
 
     ax.text(0.05, -0.65,
             "HC/LC: GeneTrek high-confidence / candidate; NEU/DEV: Orphanet neurological / "
-            "developmental;\nSJ: Sanchis-Juan et al.; SF1: SFARI Gene score 1; SF: other "
-            "SFARI Gene entry. Counts: genes leaving at each branch.",
+            "developmental;\nSJ: Sanchis-Juan et al.; sfari+ / sfari: SFARI Gene entry "
+            "assigning score 2 / score 1. Counts: genes leaving at each branch.",
             fontsize=6.5, color="#555555", va="bottom")
     fig.savefig(out_png, dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -194,7 +194,7 @@ def main():
     sfari_any = f["SFARI_plus"] | f["SFARI_other"]
     rules = pd.DataFrame({
         "R1: GeneTrek high-confidence": f["GeneTrek_HC"],
-        "R2: SFARI Gene score 1": f["SFARI_plus"],
+        "R2: sfari+ (SFARI entry assigning score 2)": f["SFARI_plus"],
         "R3: Orphanet neurological AND developmental": f["Orphanet_neuro"] & f["Orphanet_develop"],
         "R4: Sanchis-Juan AND >=1 supporting source": f["SanchisJuan"] & (
             f["Orphanet_neuro"] | f["Orphanet_develop"] | f["GeneTrek_LC"] | sfari_any),
@@ -226,14 +226,14 @@ def main():
     left = pd.Series(True, index=f.index)
     qs = [
         ("GeneTrek high-confidence (HC)?", f["GeneTrek_HC"], "Rule R1"),
-        ("SFARI Gene score 1 (SF1)?", f["SFARI_plus"], "Rule R2"),
+        ("sfari+ gene?", f["SFARI_plus"], "Rule R2"),
         ("Orphanet neurological AND developmental\n(NEU and DEV)?",
          f["Orphanet_neuro"] & f["Orphanet_develop"], "Rule R3"),
-        ("Sanchis-Juan (SJ) AND at least one of\nNEU, DEV, LC, SF1, SF?",
+        ("Sanchis-Juan (SJ) AND at least one of\nNEU, DEV, LC, sfari+, sfari?",
          f["SanchisJuan"] & (f["Orphanet_neuro"] | f["Orphanet_develop"]
                              | f["GeneTrek_LC"] | sfari_any), "Rule R4"),
         # HC genes have all left at R1, so HC is not re-tested here
-        ("Any source flag\n(LC, NEU, DEV, SJ, SF1, SF)?",
+        ("Any source flag\n(LC, NEU, DEV, SJ, sfari+, sfari)?",
          f.drop(columns="GeneTrek_HC").any(axis=1), "Remaining genes"),
     ]
     tree = []
