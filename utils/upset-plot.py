@@ -255,12 +255,17 @@ def main():
     contents = {sg: gene_subgroups[sg] for sg in subgroups_to_plot}
     membership = from_contents(contents)
 
-    fig = plt.figure(figsize=(max(8, 1.5 * len(subgroups_to_plot) + 4), 6))
+    fig = plt.figure(figsize=(max(8, 1.5 * len(subgroups_to_plot) + 4.5), 6))
     upset = UpSet(
         membership,
         subset_size='count',
         show_counts=True,
         sort_by='cardinality',
+        # Drop the left-hand per-category totals bar chart entirely -- with it removed,
+        # the intersection-size bar chart (top) and the membership matrix (bottom) share
+        # the same column grid and therefore render at exactly the same width. The set
+        # totals it would have shown are added back as right-hand row labels below instead.
+        totals_plot_elements=0,
     )
     axes = upset.plot(fig=fig)
     # Style the intersection-size bars to match the site's accent color (avoids passing
@@ -269,6 +274,23 @@ def main():
     if "intersections" in axes:
         for bar in axes["intersections"].patches:
             bar.set_facecolor('#4689a3')
+
+    # Total set size per category, printed to the right of each matrix row (in place of
+    # the removed left-hand totals bar chart).
+    if "matrix" in axes:
+        mat_ax = axes["matrix"]
+        xlim = mat_ax.get_xlim()
+        margin = 0.03 * abs(xlim[1] - xlim[0])
+        row_labels = [t.get_text() for t in mat_ax.get_yticklabels()]
+        for row_idx, category in enumerate(row_labels):
+            total = len(gene_subgroups.get(category, set()))
+            mat_ax.text(
+                xlim[1] + margin, row_idx, f"{total:,}",
+                ha="left", va="center", fontsize=9, color="#333333",
+            )
+        # keep the data xlim unchanged so the added labels sit in the margin outside it
+        mat_ax.set_xlim(xlim)
+
     fig.suptitle(f"UpSet plot \u2014 {class_name.capitalize()} genes "
                  f"(total: {len(class_genes):,})", fontsize=13, fontweight='bold')
 
