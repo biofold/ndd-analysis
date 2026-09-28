@@ -126,24 +126,26 @@ def _apply_upsetplot_pandas3_patch(_up_plotting, pd, np):
 
         # float(...) -- collapses the 1-element ndarray np.diff() returns to a
         # Python scalar, which matplotlib's Text artist requires
+        # fontsize=9 -- slightly smaller than matplotlib's default (10) so the count
+        # labels read as annotations rather than competing with the bars/tick labels
         if where == "right":
             margin = float(0.01 * abs(np.diff(ax.get_xlim()))[0])
             for rect in rects:
                 width = rect.get_width() + rect.get_x()
                 ax.text(width + margin, rect.get_y() + rect.get_height() * 0.5,
-                        fmt.format(*make_args(width)), ha="left", va="center")
+                        fmt.format(*make_args(width)), ha="left", va="center", fontsize=9)
         elif where == "left":
             margin = float(0.01 * abs(np.diff(ax.get_xlim()))[0])
             for rect in rects:
                 width = rect.get_width() + rect.get_x()
                 ax.text(width + margin, rect.get_y() + rect.get_height() * 0.5,
-                        fmt.format(*make_args(width)), ha="right", va="center")
+                        fmt.format(*make_args(width)), ha="right", va="center", fontsize=9)
         elif where == "top":
             margin = float(0.01 * abs(np.diff(ax.get_ylim()))[0])
             for rect in rects:
                 height = rect.get_height() + rect.get_y()
                 ax.text(rect.get_x() + rect.get_width() * 0.5, height + margin,
-                        fmt.format(*make_args(height)), ha="center", va="bottom")
+                        fmt.format(*make_args(height)), ha="center", va="bottom", fontsize=9)
         else:
             raise NotImplementedError("unhandled where: %r" % where)
 
@@ -302,7 +304,7 @@ def main():
             total = len(gene_subgroups.get(category, set()))
             mat_ax.text(
                 xlim[1] + margin, row_idx, f"{total:,}",
-                ha="left", va="center", fontsize=9, color="#333333",
+                ha="left", va="center", fontsize=8, color="#333333",
             )
         # keep the data xlim unchanged so the added labels sit in the margin outside it
         mat_ax.set_xlim(xlim)
