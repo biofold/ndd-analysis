@@ -203,23 +203,8 @@ def create_violin_plot(filename, category_col, score_col, output_file=None, save
         spine.set_color('#333333')  # Dark gray border (not too harsh)
         spine.set_linewidth(0.8)    # Thin border line
     
-    # Add statistical information as text box
-    stats_text = []
-    for cat in categories:
-        cat_data = df_clean[df_clean[cat_col_name] == cat][score_col_name]
-        if len(cat_data) > 0:
-            stats_text.append(f"Cat {cat}: n={len(cat_data)}, med={cat_data.median():.3f}, mean={cat_data.mean():.3f}")
-    
-    stats_str = "\n".join(stats_text)
-    
-    # Add stats box with light styling
-    props = dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='#999999', linewidth=0.5)
-    ax.text(0.02, -0.15, stats_str, transform=ax.transAxes, fontsize=8, 
-            verticalalignment='top', bbox=props, color='#333333')
-    
     # Adjust layout
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.25)
     
     # Save the plot in different formats
     if output_file is None:

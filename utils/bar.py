@@ -146,21 +146,7 @@ def create_bar_plot(filename, category_col, score_col, output_file=None, save_pd
         spine.set_color('#333333')
         spine.set_linewidth(0.8)
 
-    # Add statistical information as text box
-    stats_text = []
-    for _, row in stats_df.iterrows():
-        stats_text.append(
-            f"Cat {row['Category']}: n={int(row['Count'])}, "
-            f"prop={row['Proportion']:.3f} [{row['CI_lower']:.3f}-{row['CI_upper']:.3f}]"
-        )
-    stats_str = "\n".join(stats_text)
-
-    props_box = dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='#999999', linewidth=0.5)
-    ax.text(0.02, -0.15, stats_str, transform=ax.transAxes, fontsize=8,
-            verticalalignment='top', bbox=props_box, color='#333333')
-
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.25)
 
     # Save the plot in different formats
     if output_file is None:
