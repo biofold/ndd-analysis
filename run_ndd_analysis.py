@@ -1241,6 +1241,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "source_contribution.tsv", "table_s21.tsv"),
         (validation_dir / "source_sfari_only.tsv", "table_s22.tsv"),
         (validation_dir / "source_rule_check.tsv", "table_s23.tsv"),
+        (validation_dir / "source_rule_counts.tsv", "table_s24.tsv"),
     ]
     for src_file, new_name in validation_tables:
         if copy_file(src_file, tables_dir, new_name):

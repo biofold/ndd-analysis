@@ -20,7 +20,11 @@ seven source flags:
      the four resources (Orphanet, SFARI Gene, GeneTrek, Sanchis-Juan), remove
      all of its flags, reclassify with the same rule, and count the genes that
      change class. This is each resource's unique contribution.
-  3. sfari_only.tsv  -- candidate genes whose only source flag is SFARI (the
+  3. rule_counts.tsv -- for high-confidence genes, how many satisfy each of
+     the four rules, how many satisfy only that rule, and the distribution of
+     the number of rules and of source flags per gene in every class (the
+     flags are not mutually exclusive; this quantifies the overlap).
+  4. sfari_only.tsv  -- candidate genes whose only source flag is SFARI (the
      genes that cannot be placed in a three-set Venn diagram of Orphanet /
      GeneTrek / Sanchis-Juan).
 
@@ -105,7 +109,39 @@ def main():
     contrib = pd.DataFrame(rows)
     contrib.to_csv(f"{args.output_prefix}_contribution.tsv", sep="\t", index=False)
 
-    # 3. SFARI-only candidates
+    # 3. per-rule counts and flag multiplicity
+    sfari_any = f["SFARI_plus"] | f["SFARI_other"]
+    rules = pd.DataFrame({
+        "R1: GeneTrek high-confidence": f["GeneTrek_HC"],
+        "R2: SFARI Gene score 1": f["SFARI_plus"],
+        "R3: Orphanet neurological AND developmental": f["Orphanet_neuro"] & f["Orphanet_develop"],
+        "R4: Sanchis-Juan AND >=1 supporting source": f["SanchisJuan"] & (
+            f["Orphanet_neuro"] | f["Orphanet_develop"] | f["GeneTrek_LC"] | sfari_any),
+    })
+    hc = rule == "curated"
+    n_rules = rules[hc].sum(axis=1)
+    rc = []
+    for name in rules.columns:
+        rc.append({"section": "rule", "item": name,
+                   "high_conf_genes_satisfying": int(rules.loc[hc, name].sum()),
+                   "satisfying_only_this_rule": int((rules.loc[hc, name] & (n_rules == 1)).sum())})
+    for k, cnt in n_rules.value_counts().sort_index().items():
+        rc.append({"section": "rules_per_high_conf_gene", "item": int(k),
+                   "high_conf_genes_satisfying": int(cnt), "satisfying_only_this_rule": ""})
+    nflag = f.sum(axis=1)
+    for cls in ["curated", "candidate", "no_evidence"]:
+        vc = nflag[rule == cls].value_counts().sort_index()
+        for k, cnt in vc.items():
+            rc.append({"section": f"flags_per_gene:{LABEL[cls]}", "item": int(k),
+                       "high_conf_genes_satisfying": int(cnt), "satisfying_only_this_rule": ""})
+    sanchis_alone = f["SanchisJuan"] & ~f.drop(columns="SanchisJuan").any(axis=1)
+    rc.append({"section": "sanchis_juan_without_support", "item": "candidate",
+               "high_conf_genes_satisfying": int(sanchis_alone.sum()), "satisfying_only_this_rule": ""})
+    pd.DataFrame(rc).rename(columns={"high_conf_genes_satisfying": "n_genes",
+                                     "satisfying_only_this_rule": "n_only_this_rule"}) \
+        .to_csv(f"{args.output_prefix}_rule_counts.tsv", sep="\t", index=False)
+
+    # 4. SFARI-only candidates
     others = [c for c in FLAGS if c not in RESOURCES["SFARI Gene"]]
     sf_only = mt[(mt["Class"] == "candidate")
                  & (f["SFARI_plus"] | f["SFARI_other"]) & ~f[others].any(axis=1)]
