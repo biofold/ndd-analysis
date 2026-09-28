@@ -20,8 +20,14 @@ confusion-matrix cell is zero) and a Fisher's exact test p-value per
 cutoff, plus ROC and precision-recall curves treating MOE_score as a
 6-level ordinal classifier score.
 
+Restricted to the candidate set by default (--all-classes to override):
+including high-confidence genes would be circular, since the criteria used
+to call a gene high-confidence (GeneTrek-HC, Orphanet-both, SFARI+,
+Sanchis-Juan) already independently correlate with ClinVar evidence.
+
 Input: the merged gene master table (ndd_master_table.tsv), which must
-have MOE_score, n_pathogenic_likely_pathogenic and n_plp_ge1star columns.
+have MOE_score, Class, n_pathogenic_likely_pathogenic and n_plp_ge1star
+columns.
 """
 
 import argparse
@@ -62,11 +68,22 @@ def main():
     ap.add_argument("--strict", action="store_true",
                      help="Use n_plp_ge1star (>=1-star reviewed P/LP variants) as the "
                           "ClinVar positive label instead of n_pathogenic_likely_pathogenic")
-    ap.add_argument("--class-filter", default=None,
+    ap.add_argument("--class-filter", default="candidate",
                      help="Restrict to one Class value (curated, candidate, no_evidence). "
-                          "Default: all genes.")
+                          "Default: candidate. Including high-confidence genes is circular -- "
+                          "they were selected using criteria (GeneTrek-HC, Orphanet-both, "
+                          "SFARI+, Sanchis-Juan) that independently correlate with ClinVar "
+                          "evidence, so of course they score higher on both MOE and ClinVar; "
+                          "that says nothing about whether MOE>=4 is a good threshold for "
+                          "promoting *candidates*, which is the actual question.")
+    ap.add_argument("--all-classes", action="store_true",
+                     help="Override --class-filter and run on all genes regardless of Class "
+                          "(kept only for exploratory/descriptive use -- not a substitute for "
+                          "the candidate-only analysis when reporting MOE>=4 validation).")
     ap.add_argument("--output-dir", default=".", help="Directory for output table and figure")
     args = ap.parse_args()
+    if args.all_classes:
+        args.class_filter = None
 
     if not os.path.exists(args.master_table):
         print(f"Error: File not found: {args.master_table}", file=sys.stderr)

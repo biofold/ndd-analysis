@@ -18,8 +18,13 @@ regression via statsmodels), reporting coefficients, odds ratios, 95% CI
 and p-values for both terms, plus the Spearman correlation between
 MOE_score and gnomAD_pLI, and per-MOE-tier pLI summary statistics.
 
+Restricted to the candidate set by default (--all-classes to override):
+including high-confidence genes would be circular, since the criteria used
+to call a gene high-confidence (GeneTrek-HC, Orphanet-both, SFARI+,
+Sanchis-Juan) already independently correlate with ClinVar evidence.
+
 Input: the merged gene master table (ndd_master_table.tsv), which must
-have MOE_score, gnomAD_pLI, n_pathogenic_likely_pathogenic and
+have MOE_score, Class, gnomAD_pLI, n_pathogenic_likely_pathogenic and
 n_plp_ge1star columns.
 """
 
@@ -39,11 +44,15 @@ def main():
     ap.add_argument("--strict", action="store_true",
                      help="Use n_plp_ge1star (>=1-star reviewed P/LP variants) as the "
                           "ClinVar positive label instead of n_pathogenic_likely_pathogenic")
-    ap.add_argument("--class-filter", default=None,
+    ap.add_argument("--class-filter", default="candidate",
                      help="Restrict to one Class value (curated, candidate, no_evidence). "
-                          "Default: all genes.")
+                          "Default: candidate (see module docstring for why).")
+    ap.add_argument("--all-classes", action="store_true",
+                     help="Override --class-filter and run on all genes regardless of Class.")
     ap.add_argument("--output-dir", default=".", help="Directory for output tables and figure")
     args = ap.parse_args()
+    if args.all_classes:
+        args.class_filter = None
 
     if not os.path.exists(args.master_table):
         print(f"Error: File not found: {args.master_table}", file=sys.stderr)
