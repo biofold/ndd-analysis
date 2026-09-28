@@ -513,6 +513,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
     calculate_table_s3 = get_absolute_path("utils/calculate_table_s3.sh")
     calculate_table_compara = get_absolute_path("utils/calculate_table_compara.sh")
     venn_plot = get_absolute_path("utils/venn-plot.py")
+    upset_plot = get_absolute_path("utils/upset-plot.py")
     violin_script = get_absolute_path("utils/violin.py")
     ks_test_script = get_absolute_path("utils/ks-test.py")
     set_operations = get_absolute_path("utils/set_operations.sh")
@@ -627,6 +628,31 @@ def step_documentation(gene_files, output_dirs, conda_env):
             str(venn_curated_output)
         ], step_name="Generating Venn diagram (curated)", env_name=conda_env)
         print(f"  ✓ Venn diagram saved to: {venn_curated_output}", file=sys.stderr)
+
+    # Part C.2: Generate UpSet plots, kept alongside the Venn diagrams above. Unlike the
+    # 3-set-capped Venn diagrams, these show every source-intersection combination
+    # explicitly (SFARI included, plus the Orphanet neuro/develop AND-relationship that
+    # defines curated eligibility, instead of pre-collapsing them into one "orpha" set).
+    print("\n--- Part C.2: Generating UpSet plots ---", file=sys.stderr)
+
+    if Path(upset_plot).exists() and combined_file:
+        print("\nGenerating UpSet plot (candidate)...", file=sys.stderr)
+        upset_candidate_output = figures_dir / "upset_candidate.png"
+        run_command_conda([
+            "python", str(upset_plot),
+            str(combined_file), "candidate", "sanchis,candidate,neuro,develop,sfari",
+            str(upset_candidate_output)
+        ], step_name="Generating UpSet plot (candidate)", env_name=conda_env)
+        print(f"  ✓ UpSet plot saved to: {upset_candidate_output}", file=sys.stderr)
+
+        print("\nGenerating UpSet plot (curated)...", file=sys.stderr)
+        upset_curated_output = figures_dir / "upset_curated.png"
+        run_command_conda([
+            "python", str(upset_plot),
+            str(combined_file), "curated", "sanchis,hc,neuro,develop,sfari+",
+            str(upset_curated_output)
+        ], step_name="Generating UpSet plot (curated)", env_name=conda_env)
+        print(f"  ✓ UpSet plot saved to: {upset_curated_output}", file=sys.stderr)
 
     # Part D: COPY summary files (CHANGED FROM MOVE)
     print("\n--- Part D: Copying summary files ---", file=sys.stderr)
