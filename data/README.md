@@ -73,6 +73,44 @@ Data bucket, arn:aws:s3:::gnomad-public-us-east-1) and compares:
   check.
   `python utils/verify_gnomad_pli_source.py --version 4.1 --input data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --dbnsfp-pli-table data/gene_gnomad_pli.tsv`
 
+## HPO and ClinGen haploinsufficiency (moved off dbNSFP to primary sources)
+
+ndd_master_table.tsv's HPO_id/HPO_name and ClinGen_Haploinsufficiency_Score
+columns were originally dbNSFP5.2 re-exports; both are now sourced
+directly from their own primary databases instead:
+
+- `data/raw/genes_to_phenotype_20260928.txt.gz` -- HPO's own
+  gene-to-phenotype annotation file (downloaded 2026-09-28 from
+  https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/genes_to_phenotype.txt).
+  `utils/extract_hpo_terms.py` dedups by (gene_symbol, hpo_id) -- 18.0%
+  of raw rows are duplicates via >1 source disease -- and upper-cases
+  gene symbols to HGNC convention. Result: `data/gene_hpo_terms.tsv`.
+  SCN2A: 208 terms direct vs 162 from dbNSFP's stale snapshot.
+  `python utils/extract_hpo_terms.py --genes-to-phenotype-file data/raw/genes_to_phenotype_20260928.txt.gz --output data/gene_hpo_terms.tsv`
+- `data/raw/clingen_dosage_sensitivity_20260928.tsv` -- ClinGen's own
+  dosage-sensitivity curation export (downloaded 2026-09-28 from
+  https://search.clinicalgenome.org/kb/gene-dosage/download).
+  `utils/extract_clingen_hi.py` maps ClinGen's text evidence categories
+  to the standard 0-3/30/40 numeric scale (verified empirically against
+  dbNSFP: 99.2% agreement across 1,559 comparable genes; the 0.8% that
+  differ are genes ClinGen has re-curated since dbNSFP's snapshot).
+  Result: `data/gene_clingen_hi.tsv`.
+  `python utils/extract_clingen_hi.py --clingen-dosage-file data/raw/clingen_dosage_sensitivity_20260928.tsv --output data/gene_clingen_hi.tsv`
+
+Both were deployed to the live master table and MongoDB on 2026-09-28
+(verified live: SCN2A now shows 208 HPO terms and ClinGen HI score 3.0
+via https://data.biofold.org/inddx/api/gene/SCN2A).
+
+Still sourced from dbNSFP5.2 (`data/raw/dbNSFP5.2_gene.gz`, see
+extract_gnomad_pli.py above): gnomAD_pLI, RVIS_percentile_ExAC, HIPred,
+GHIS. RVIS's primary source (genic-intolerance.org) now redirects to
+an unrelated commercial site (domain squatted/abandoned) and GDI's
+primary source (hgidsoft.rockefeller.edu) times out on TLS handshake
+(server unreachable) -- neither is currently extractable directly.
+gnomAD_pLI has a working direct source (see the provenance-check
+section above) but has not yet been swapped in as the master table's
+live source the way HPO/ClinGen were.
+
 ## Useful links
 1. DDG2P   https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz \
            https://ftp.ebi.ac.uk/pub/databases/gene2phenotype
