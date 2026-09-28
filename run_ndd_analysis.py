@@ -1198,6 +1198,31 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     else:
         sys.stderr.write(f"Warning: {mondo_hpo_script} not found; skipping MONDO/HPO coverage\n")
 
+    # Part E.3: MOE component redundancy, HPO-augmented score, threshold choice,
+    # ClinGen haploinsufficiency, annotation-density strata (R1.3, R2.9, R2.10)
+    print("\n--- Part E.3: MOE component analyses (R1.3/R2.9/R2.10) ---", file=sys.stderr)
+    component_script = get_absolute_path("utils/moe_validation/moe_component_analysis.py")
+    if Path(component_script).exists():
+        run_command_conda([
+            "python", str(component_script), str(master_table),
+            "--hpo", str(Path(data_dir) / "gene_hpo_terms.tsv"),
+            "--libs", str(get_absolute_path("libs")),
+            "--output-prefix", str(validation_dir / "moe_component")
+        ], step_name="Running MOE component analyses", env_name=conda_env)
+    else:
+        sys.stderr.write(f"Warning: {component_script} not found; skipping component analyses\n")
+
+    # Part E.4: Table 1 rule check and per-source unique contribution (R1.1, R2.3)
+    print("\n--- Part E.4: Classification rule check and source contribution (R1.1/R2.3) ---", file=sys.stderr)
+    source_script = get_absolute_path("utils/table_generation/source_contribution.py")
+    if Path(source_script).exists():
+        run_command_conda([
+            "python", str(source_script), str(master_table),
+            "--output-prefix", str(validation_dir / "source")
+        ], step_name="Checking classification rule and source contribution", env_name=conda_env)
+    else:
+        sys.stderr.write(f"Warning: {source_script} not found; skipping source contribution\n")
+
     # Part F: promote the validation tables into docs/tables with table numbers
     print("\n--- Part F: Copying validation tables ---", file=sys.stderr)
     validation_tables = [
@@ -1207,6 +1232,15 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
         (validation_dir / "moe_annotation_density_correlations.tsv", "table_s13.tsv"),
         (figures_dir / "mondo_hpo_by_moe.tsv", "table_s14.tsv"),
+        (validation_dir / "moe_component_redundancy.tsv", "table_s15.tsv"),
+        (validation_dir / "moe_component_pca.tsv", "table_s16.tsv"),
+        (validation_dir / "moe_component_score_variants.tsv", "table_s17.tsv"),
+        (validation_dir / "moe_component_thresholds.tsv", "table_s18.tsv"),
+        (validation_dir / "moe_component_clingen_hi.tsv", "table_s19.tsv"),
+        (validation_dir / "moe_component_annotation_strata.tsv", "table_s20.tsv"),
+        (validation_dir / "source_contribution.tsv", "table_s21.tsv"),
+        (validation_dir / "source_sfari_only.tsv", "table_s22.tsv"),
+        (validation_dir / "source_rule_check.tsv", "table_s23.tsv"),
     ]
     for src_file, new_name in validation_tables:
         if copy_file(src_file, tables_dir, new_name):
