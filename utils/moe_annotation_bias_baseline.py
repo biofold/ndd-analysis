@@ -104,6 +104,21 @@ def main():
     go_counts = pd.read_csv(args.go_counts, sep="\t").rename(columns={"n_go_annotations": "n_go_annotations"})
     pubmed_counts = pd.read_csv(args.pubmed_counts, sep="\t")[["Symbol", "n_pubmed"]].rename(columns={"Symbol": "Gene"})
 
+    # NCBI's gene2pubmed keys on GeneID, so a handful of symbols (e.g. TEC,
+    # MMD2) appear more than once. Left-merging those unaggregated would
+    # duplicate candidate genes and inflate n relative to the other validation
+    # scripts. Collapse to one row per symbol, keeping the largest count --
+    # the most favourable value for the annotation-volume baseline, so the
+    # comparison against MOE is not made artificially easy to win.
+    go_counts = go_counts.groupby("Gene", as_index=False).max(numeric_only=True)
+    pubmed_counts = pubmed_counts.groupby("Gene", as_index=False).max(numeric_only=True)
+
+    # A master table built by utils/build_master_table.py already carries
+    # n_go_annotations / n_pubmed columns. Drop them before merging so pandas
+    # does not disambiguate the duplicates into _x/_y suffixes; the standalone
+    # count files passed on the command line are taken as authoritative.
+    df = df.drop(columns=[c for c in ("n_go_annotations", "n_pubmed") if c in df.columns])
+
     df = df.merge(go_counts, on="Gene", how="left")
     df = df.merge(pubmed_counts, on="Gene", how="left")
     df["n_go_annotations"] = df["n_go_annotations"].fillna(0)

@@ -184,6 +184,14 @@ def create_bar_plot(filename, category_col, score_col, output_file=None, save_pd
 def main():
     """Main function to handle command line arguments"""
 
+    # Optional --png flag: also write a PNG alongside the PDF. The manuscript
+    # figures are vector PDFs, but the response-to-reviewers document embeds
+    # raster copies, so both are needed from the same invocation.
+    save_png = "--png" in sys.argv
+    if save_png:
+        sys.argv = [a for a in sys.argv if a != "--png"]
+
+
     if len(sys.argv) >= 4:
         filename = sys.argv[1]
         category_col = int(sys.argv[2])
@@ -211,7 +219,7 @@ def main():
             output_file = None
 
     create_bar_plot(filename, category_col, score_col, output_file,
-                     save_pdf=True, save_png=False, save_stats=True)
+                     save_pdf=True, save_png=save_png, save_stats=True)
 
 if __name__ == "__main__":
     required_packages = ['pandas', 'matplotlib', 'numpy']

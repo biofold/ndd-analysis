@@ -444,6 +444,8 @@ def create_combined_heatmap(ks_matrix, pvalue_matrix, categories, cat_col_name, 
     
     plt.tight_layout()
     
+    base_filename = os.path.splitext(pdf_file)[0]
+
     saved_files = []
     
     # Save as PDF
@@ -463,6 +465,14 @@ def create_combined_heatmap(ks_matrix, pvalue_matrix, categories, cat_col_name, 
 
 def main():
     """Main function to handle command line arguments"""
+
+    # Optional --png flag: also write a PNG alongside the PDF. The manuscript
+    # figures are vector PDFs, but the response-to-reviewers document embeds
+    # raster copies, so both are needed from the same invocation.
+    save_png = "--png" in sys.argv
+    if save_png:
+        sys.argv = [a for a in sys.argv if a != "--png"]
+
     
     # Check if arguments are provided
     if len(sys.argv) >= 4:
@@ -496,7 +506,7 @@ def main():
             return
     
     # Perform pairwise KS tests (saves both PDF and PNG by default)
-    pairwise_ks_test(filename, category_col, score_col, output_file, alpha, save_heatmap=True, save_pdf=True, save_png=False)
+    pairwise_ks_test(filename, category_col, score_col, output_file, alpha, save_heatmap=True, save_pdf=True, save_png=save_png)
 
 if __name__ == "__main__":
     # Check if required packages are installed

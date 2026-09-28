@@ -16,6 +16,9 @@ dependencies:
   - seaborn=0.13.2
   - statsmodels=0.14.4
   - gseapy=1.1.6
+  - scikit-learn        # ROC/PR curves in utils/roc-pr.py and the MOE validation scripts
+  - upsetplot           # utils/upset-plot.py (reviewer point R2.3)
+  - goatools            # utils/build_goslim_gmt.py (GO slim mapping, reviewer point R1.2)
   - pyyaml=6.0.2
   - requests
   - certifi

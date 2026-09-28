@@ -171,6 +171,14 @@ def compute_roc_pr(filename, predictor_col, outcome_col, output_file=None, pos_l
 def main():
     """Main function to handle command line arguments"""
 
+    # Optional --png flag: also write a PNG alongside the PDF. The manuscript
+    # figures are vector PDFs, but the response-to-reviewers document embeds
+    # raster copies, so both are needed from the same invocation.
+    save_png = "--png" in sys.argv
+    if save_png:
+        sys.argv = [a for a in sys.argv if a != "--png"]
+
+
     if len(sys.argv) >= 4:
         filename = sys.argv[1]
         predictor_col = int(sys.argv[2])
@@ -200,7 +208,7 @@ def main():
         pos_label = 1
 
     compute_roc_pr(filename, predictor_col, outcome_col, output_file, pos_label,
-                   save_pdf=True, save_png=False, save_stats=True)
+                   save_pdf=True, save_png=save_png, save_stats=True)
 
 if __name__ == "__main__":
     required_packages = ['pandas', 'numpy', 'matplotlib', 'scikit-learn']

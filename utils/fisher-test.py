@@ -350,6 +350,14 @@ def create_combined_heatmap(or_matrix, pvalue_matrix, categories, cat_col_name, 
 def main():
     """Main function to handle command line arguments"""
 
+    # Optional --png flag: also write a PNG alongside the PDF. The manuscript
+    # figures are vector PDFs, but the response-to-reviewers document embeds
+    # raster copies, so both are needed from the same invocation.
+    save_png = "--png" in sys.argv
+    if save_png:
+        sys.argv = [a for a in sys.argv if a != "--png"]
+
+
     if len(sys.argv) >= 4:
         filename = sys.argv[1]
         category_col = int(sys.argv[2])
@@ -376,7 +384,7 @@ def main():
             print("Error: Invalid input.")
             return
 
-    pairwise_fisher_test(filename, category_col, score_col, output_file, alpha, save_heatmap=True, save_pdf=True, save_png=False)
+    pairwise_fisher_test(filename, category_col, score_col, output_file, alpha, save_heatmap=True, save_pdf=True, save_png=save_png)
 
 if __name__ == "__main__":
     required_packages = ['pandas', 'numpy', 'scipy', 'matplotlib']

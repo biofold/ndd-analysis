@@ -23,30 +23,38 @@ def get_conda_python(env_name="ndd_analysis"):
         )
         python_path = result.stdout.strip()
         return python_path
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # `conda` may be absent from PATH (e.g. the pipeline is launched from an
+        # already-activated environment, or from a container that only exposes the
+        # env's bin/). Fall back to locating the environment prefix by hand.
+        candidate_bases = []
         conda_prefix = os.environ.get("CONDA_PREFIX", None)
         if conda_prefix:
-            conda_base = os.path.dirname(conda_prefix)
-        else:
-            possible_bases = [
-                os.path.expanduser("~/miniconda3"),
-                os.path.expanduser("~/anaconda3"),
-                "/opt/miniconda3",
-                "/opt/anaconda3"
-            ]
-            conda_base = None
-            for base in possible_bases:
-                if os.path.exists(base):
-                    conda_base = base
-                    break
-        
-        if conda_base:
-            python_path = os.path.join(conda_base, "envs", env_name, "bin", "python")
+            # CONDA_PREFIX is either the base install (.../miniconda3) or a named
+            # environment (.../miniconda3/envs/<name>); cover both.
+            candidate_bases.append(conda_prefix)
+            parent = os.path.dirname(conda_prefix)
+            if os.path.basename(parent) == "envs":
+                candidate_bases.append(os.path.dirname(parent))
+        candidate_bases.extend([
+            os.path.expanduser("~/miniconda3"),
+            os.path.expanduser("~/anaconda3"),
+            "/opt/miniconda3",
+            "/opt/anaconda3"
+        ])
+
+        for base in candidate_bases:
+            python_path = os.path.join(base, "envs", env_name, "bin", "python")
             if os.path.exists(python_path):
                 return python_path
-        
-        sys.stderr.write(f"Warning: Could not find conda environment '{env_name}', using system python\n")
-        return "python"
+
+        # Last resort: if this script is itself running inside an interpreter that
+        # has the dependencies, reuse it rather than an arbitrary `python` on PATH.
+        sys.stderr.write(
+            f"Warning: Could not find conda environment '{env_name}', "
+            f"falling back to the current interpreter ({sys.executable})\n"
+        )
+        return sys.executable
 
 def run_command(command, step_name=None, env_name="ndd_analysis"):
     """Run a command with proper error handling and output capture."""
@@ -77,7 +85,15 @@ def run_command_conda(command, step_name=None, env_name="ndd_analysis"):
     if step_name:
         print(f"\n{step_name}...", file=sys.stderr)
     
-    conda_command = ["conda", "run", "-n", env_name] + command
+    if shutil.which("conda"):
+        conda_command = ["conda", "run", "-n", env_name] + command
+    else:
+        # No `conda` launcher on PATH: run the command directly with the
+        # environment's interpreter (resolved by get_conda_python).
+        conda_command = list(command)
+        if conda_command and conda_command[0] in ("python", "python3"):
+            conda_command[0] = get_conda_python(env_name)
+
     print(f"Running: {' '.join(conda_command)}", file=sys.stderr)
     
     try:
@@ -716,10 +732,11 @@ def step_documentation(gene_files, output_dirs, conda_env):
         (output_dirs['docs'] / "summaries/summary_table.tsv", 
          output_dirs['docs'] / "tables", 
          "table_3.tsv"),
-        (output_dirs['docs'] / "main/mondo_supercandidate_matrix.txt",
-         output_dirs['docs'] / "matrices",
+        # Written by step_initial_calculations into results/main/, not into docs/.
+        (output_dirs['main'] / "mondo_supercandidate_matrix.txt",
+         matrices_dir,
          None),
-        (output_dirs['docs'] / "matrices/mondo_supercandidate_matrix.txt",
+        (matrices_dir / "mondo_supercandidate_matrix.txt",
          output_dirs['docs'] / "tables",
          "table_s4.tsv")
      
@@ -829,7 +846,14 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- Table S5b: SysNDD score distribution across MOE score tiers\n")
         f.write("- Table S6: KS test results comparing SysNDD scores across MOE subsets\n")
         f.write("- Table S7: Curated set cancer compara summary\n")
-        f.write("- Table S8: Candidate set cancer compara summary\n\n")
+        f.write("- Table S8: Candidate set cancer compara summary\n")
+        f.write("- Table S9: MOE threshold operating characteristics against ClinVar P/LP\n")
+        f.write("- Table S10: MOE vs ClinVar P/LP adjusted for gnomAD pLI (logistic regression)\n")
+        f.write("- Table S11: ROC/PR AUC of MOE vs annotation-density baselines\n")
+        f.write("- Table S12: MOE vs ClinVar P/LP adjusted for GO and PubMed counts\n\n")
+        f.write("### Validation (generated in Step 6)\n")
+        f.write("- Independent validation of the MOE score against ClinVar P/LP status,\n")
+        f.write("  gnomAD pLI constraint and annotation-density baselines\n\n")
         f.write("### Summaries\n- Summary tables for each analysis\n\n")
         f.write("### Matrices\n- Overlap matrices\n- Aggregated matrices\n\n")
         f.write("### Excel Files (generated in Step 5)\n")
@@ -1022,6 +1046,135 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     else:
         sys.stderr.write("Warning: No files found to include in NDD Report\n")
 
+def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
+    """Step 6: Independent validation of the MOE score.
+
+    Addresses the reviewer requests that the MOE >= 4 threshold be validated
+    against data the score was not derived from (R1.3), that the score be
+    shown not to be a proxy for annotation density (R2.9), and that the
+    behaviour of the individual score tiers be characterised (R2.10).
+
+    Everything here runs off a single merged per-gene table built by
+    utils/build_master_table.py, so the figures and tables quoted in the
+    response to the reviewers are regenerated by the same command that
+    regenerates the manuscript figures.
+    """
+    print("\n" + "="*60, file=sys.stderr)
+    print("STEP 6: MOE VALIDATION (reviewer points R1.3, R2.9, R2.10)", file=sys.stderr)
+    print("="*60, file=sys.stderr)
+
+    main_dir = output_dirs['main']
+    figures_dir = output_dirs['docs_figures']
+    tables_dir = output_dirs['docs_tables']
+    validation_dir = output_dirs['docs_validation']
+    validation_dir.mkdir(parents=True, exist_ok=True)
+
+    data_dir = Path(data_dir)
+    supercandidate_file = main_dir / "supercandidate.tsv"
+    if not supercandidate_file.exists():
+        sys.stderr.write(
+            f"Warning: {supercandidate_file} not found (run step 1 first); "
+            f"skipping MOE validation\n"
+        )
+        return
+
+    build_master_table = get_absolute_path("utils/build_master_table.py")
+    clinvar_validation = get_absolute_path("utils/moe_clinvar_validation.py")
+    pli_validation = get_absolute_path("utils/moe_pli_validation.py")
+    bias_baseline = get_absolute_path("utils/moe_annotation_bias_baseline.py")
+    violin_script = get_absolute_path("utils/violin.py")
+    ks_test_script = get_absolute_path("utils/ks-test.py")
+    bar_script = get_absolute_path("utils/bar.py")
+    fisher_test_script = get_absolute_path("utils/fisher-test.py")
+    roc_pr_script = get_absolute_path("utils/roc-pr.py")
+
+    sfari_file = data_dir / "SFARI-Gene_genes_03-28-2024release_05-17-2024.csv"
+    go_counts = data_dir / "gene_go_annotation_counts.tsv"
+    pubmed_counts = data_dir / "gene_pubmed_counts.tsv"
+
+    # Part A: merge the per-gene master table and the two validation inputs
+    print("\n--- Part A: Building the per-gene master table ---", file=sys.stderr)
+    run_command_conda([
+        "python", str(build_master_table),
+        "--data-dir", str(data_dir),
+        "--supercandidate", str(supercandidate_file),
+        "--sfari-file", str(sfari_file),
+        "--output-dir", str(main_dir)
+    ], step_name="Building master table", env_name=conda_env)
+
+    master_table = main_dir / "ndd_master_table.tsv"
+    pli_input = main_dir / "moe_pli_input.tsv"
+    clinvar_input = main_dir / "moe_clinvar_input.tsv"
+
+    for required in (master_table, pli_input, clinvar_input):
+        if not required.exists():
+            sys.stderr.write(f"Warning: {required} was not produced; skipping MOE validation\n")
+            return
+
+    # Part B: threshold operating characteristics against ClinVar P/LP (R1.3)
+    print("\n--- Part B: ClinVar operating characteristics (R1.3) ---", file=sys.stderr)
+    run_command_conda([
+        "python", str(clinvar_validation),
+        str(master_table),
+        "--output-dir", str(validation_dir)
+    ], step_name="MOE vs ClinVar P/LP validation", env_name=conda_env)
+
+    # Part C: adjustment for gnomAD constraint (R1.3)
+    print("\n--- Part C: gnomAD pLI adjusted model (R1.3) ---", file=sys.stderr)
+    run_command_conda([
+        "python", str(pli_validation),
+        str(master_table),
+        "--output-dir", str(validation_dir)
+    ], step_name="MOE vs gnomAD pLI validation", env_name=conda_env)
+
+    # Part D: annotation-density baselines (R2.9)
+    print("\n--- Part D: Annotation-bias baselines (R2.9) ---", file=sys.stderr)
+    if go_counts.exists() and pubmed_counts.exists():
+        run_command_conda([
+            "python", str(bias_baseline),
+            str(master_table),
+            "--go-counts", str(go_counts),
+            "--pubmed-counts", str(pubmed_counts),
+            "--output-dir", str(validation_dir)
+        ], step_name="MOE vs annotation-density baselines", env_name=conda_env)
+    else:
+        sys.stderr.write(
+            "Warning: GO/PubMed count files not found; skipping annotation-bias baselines\n"
+        )
+
+    # Part E: per-tier distributions and pairwise tests (R2.10)
+    print("\n--- Part E: Per-tier distributions and pairwise tests (R2.10) ---", file=sys.stderr)
+    tier_analyses = [
+        (violin_script, pli_input, "moe_pli_violin", "pLI violin by MOE tier"),
+        (ks_test_script, pli_input, "moe_pli_ks", "pLI KS matrix by MOE tier"),
+        (bar_script, clinvar_input, "moe_clinvar_bar", "ClinVar proportion by MOE tier"),
+        (fisher_test_script, clinvar_input, "moe_clinvar_fisher", "ClinVar Fisher matrix by MOE tier"),
+        (roc_pr_script, clinvar_input, "moe_clinvar_rocpr", "MOE ROC/PR against ClinVar P/LP"),
+    ]
+    for script, input_file, stem, label in tier_analyses:
+        if not Path(script).exists():
+            sys.stderr.write(f"Warning: {script} not found; skipping {label}\n")
+            continue
+        run_command_conda([
+            "python", str(script),
+            str(input_file), "2", "3",
+            str(figures_dir / f"{stem}.txt"),
+            "--png"
+        ], step_name=f"Generating {label}", env_name=conda_env)
+
+    # Part F: promote the validation tables into docs/tables with table numbers
+    print("\n--- Part F: Copying validation tables ---", file=sys.stderr)
+    validation_tables = [
+        (validation_dir / "moe_clinvar_operating_characteristics.tsv", "table_s9.tsv"),
+        (validation_dir / "moe_pli_logistic_regression.tsv", "table_s10.tsv"),
+        (validation_dir / "moe_annotation_bias_baseline_auc.tsv", "table_s11.tsv"),
+        (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
+    ]
+    for src_file, new_name in validation_tables:
+        if copy_file(src_file, tables_dir, new_name):
+            print(f"  ✓ Copied validation table: {src_file.name} → {new_name}", file=sys.stderr)
+
+
 def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
                  set0=None, set1=None, set2=None, background=None,
                  combined_file=None,
@@ -1132,6 +1285,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
         'docs_tables': base_output_dir / "docs" / "tables",
         'docs_summaries': base_output_dir / "docs" / "summaries",
         'docs_matrices': base_output_dir / "docs" / "matrices",
+        'docs_validation': base_output_dir / "docs" / "validation",
         'generated_sets': base_output_dir / "generated_sets"
     }
     
@@ -1184,7 +1338,7 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
     
     # Determine which steps to run
     if run_steps is None:
-        run_steps = [1, 2, 3, 4, 5]
+        run_steps = [1, 2, 3, 4, 5, 6]
     
     print(f"\n=== Steps to run: {run_steps} ===", file=sys.stderr)
     
@@ -1203,6 +1357,9 @@ def run_pipeline(data_dir=None, lib_dir=None, output_dir=None,
     
     if 5 in run_steps:
         step_generate_excel(gene_files, output_dirs, conda_env)
+    
+    if 6 in run_steps:
+        step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir)
     
     print("\n=== Pipeline completed successfully ===", file=sys.stderr)
 
@@ -1226,10 +1383,13 @@ Examples:
   
   # Run documentation and Excel
   %(prog)s -c config.yml --steps 4 5
+  
+  # Run only the MOE validation analyses (reviewer points R1.3, R2.9, R2.10)
+  %(prog)s -c config.yml --steps 6
         """
     )
     
-    parser.add_argument("--steps", "-s", type=int, nargs='+', choices=[1, 2, 3, 4, 5], default=None)
+    parser.add_argument("--steps", "-s", type=int, nargs='+', choices=[1, 2, 3, 4, 5, 6], default=None)
     parser.add_argument("-d", "--data_dir", type=str, default=None)
     parser.add_argument("-l", "--lib_dir", type=str, default=None)
     parser.add_argument("-o", "--output_dir", type=str, default=None)

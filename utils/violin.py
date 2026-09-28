@@ -257,6 +257,14 @@ def create_violin_plot(filename, category_col, score_col, output_file=None, save
 
 def main():
     """Main function to handle command line arguments"""
+
+    # Optional --png flag: also write a PNG alongside the PDF. The manuscript
+    # figures are vector PDFs, but the response-to-reviewers document embeds
+    # raster copies, so both are needed from the same invocation.
+    save_png = "--png" in sys.argv
+    if save_png:
+        sys.argv = [a for a in sys.argv if a != "--png"]
+
     
     # Check if arguments are provided
     if len(sys.argv) >= 4:
@@ -292,7 +300,7 @@ def main():
     
     # Create the violin plot and save statistics
     create_violin_plot(filename, category_col, score_col, output_file, 
-                      save_pdf=True, save_png=False, save_stats=True)
+                      save_pdf=True, save_png=save_png, save_stats=True)
 
 if __name__ == "__main__":
     # Check if required packages are installed
