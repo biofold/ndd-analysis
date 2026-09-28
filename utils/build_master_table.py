@@ -110,6 +110,32 @@ def read_table(path, **kwargs):
     return pd.read_csv(path, sep="\t", dtype=str, **kwargs)
 
 
+def merge_on_symbol(master, right, columns, gene_col="Gene"):
+    """Left-join `columns` from `right` onto `master`, matching gene symbols
+    case-insensitively.
+
+    Gene symbols are not consistently cased across the source databases: HGNC
+    (and therefore data/gene_all_score.txt, which is the spine of this table)
+    writes the open-reading-frame genes as C10orf105, while ClinVar, the GO
+    annotation counts, the HPO extract and every .gmt library in libs/ upper-case
+    them to C10ORF105. A plain merge on the symbol silently drops those genes'
+    values -- they come back as missing rather than as an error, which is the
+    worst failure mode for a validation table. Matching on the upper-cased
+    symbol fixes it while keeping the HGNC spelling in the output.
+
+    scripts/2_supercandidate.py already upper-cases symbols when it scores
+    genes against the libraries, so this makes the master table consistent with
+    how the MOE score itself is computed.
+    """
+    right = right.copy()
+    right["_key"] = right[gene_col].astype(str).str.strip().str.upper()
+    right = right.drop_duplicates("_key")[["_key"] + columns]
+    master = master.copy()
+    master["_key"] = master["Gene"].astype(str).str.upper()
+    merged = master.merge(right, on="_key", how="left").drop(columns="_key")
+    return merged
+
+
 def build(data_dir, supercandidate_file, sfari_file, output_dir):
     combined_file = os.path.join(data_dir, "gene_all_score.txt")
     if not os.path.exists(combined_file):
@@ -133,19 +159,19 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     sc = pd.read_csv(supercandidate_file, sep="\t", dtype=str)
     sc = sc.rename(columns={"Score": "MOE_score", "Terms": "MOE_libraries"})
     sc["MOE_score"] = pd.to_numeric(sc["MOE_score"], errors="coerce")
-    sc_terms = sc.set_index("Gene")["MOE_libraries"].fillna("")
-    master = master.merge(sc[["Gene", "MOE_score"]], on="Gene", how="left")
+    sc["_key"] = sc["Gene"].astype(str).str.upper()
+    sc_terms = sc.set_index("_key")["MOE_libraries"].fillna("")
+    master = merge_on_symbol(master, sc, ["MOE_score"])
+    key = master["Gene"].astype(str).str.upper()
     for library, column in MOE_COMPONENTS:
         hit = sc_terms.apply(lambda s, lib=library: int(lib in s.split("|")))
-        master[column] = master["Gene"].map(hit)
+        master[column] = key.map(hit)
 
     # --- SFARI gene score (categorical evidence tier, 1 = highest) ---
     if os.path.exists(sfari_file):
         sfari = pd.read_csv(sfari_file, dtype=str)
         sfari = sfari.rename(columns={"gene-symbol": "Gene", "gene-score": "SFARI_score"})
-        master = master.merge(
-            sfari[["Gene", "SFARI_score"]].drop_duplicates("Gene"), on="Gene", how="left"
-        )
+        master = merge_on_symbol(master, sfari, ["SFARI_score"])
     else:
         sys.stderr.write(f"Warning: SFARI file not found: {sfari_file}\n")
         master["SFARI_score"] = pd.NA
@@ -158,9 +184,7 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     sysndd = read_table(os.path.join(data_dir, "SysNDD_all.txt"))
     if sysndd is not None:
         sysndd = sysndd.rename(columns={"Score": "SysNDD_score"})
-        master = master.merge(
-            sysndd[["Gene", "SysNDD_score"]].drop_duplicates("Gene"), on="Gene", how="left"
-        )
+        master = merge_on_symbol(master, sysndd, ["SysNDD_score"])
     else:
         master["SysNDD_score"] = pd.NA
 
@@ -169,7 +193,7 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     if os.path.exists(mondo_path):
         mondo = pd.read_csv(mondo_path, sep="\t", dtype=str, header=None,
                             names=["Gene", "MONDO_terms"])
-        master = master.merge(mondo.drop_duplicates("Gene"), on="Gene", how="left")
+        master = merge_on_symbol(master, mondo, ["MONDO_terms"])
     else:
         sys.stderr.write(f"Warning: MONDO file not found: {mondo_path}\n")
         master["MONDO_terms"] = pd.NA
@@ -177,16 +201,16 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     # --- independent validation labels ---
     pli = read_table(os.path.join(data_dir, "gene_gnomad_pli.tsv"))
     if pli is not None:
-        master = master.merge(
-            pli[["Gene", "gnomAD_pLI"]].drop_duplicates("Gene"), on="Gene", how="left"
-        )
+        master = merge_on_symbol(master, pli, ["gnomAD_pLI"])
     else:
         master["gnomAD_pLI"] = pd.NA
 
     clinvar = read_table(os.path.join(data_dir, "clinvar_plp_gene_counts.tsv"))
     if clinvar is not None:
         clinvar = clinvar[clinvar["Gene"] != "-"]
-        master = master.merge(clinvar.drop_duplicates("Gene"), on="Gene", how="left")
+        master = merge_on_symbol(
+            master, clinvar,
+            ["n_pathogenic_likely_pathogenic", "n_plp_ge1star"])
         for col in ("n_pathogenic_likely_pathogenic", "n_plp_ge1star"):
             master[col] = pd.to_numeric(master[col], errors="coerce").fillna(0).astype(int)
     else:
@@ -195,10 +219,7 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
 
     go_counts = read_table(os.path.join(data_dir, "gene_go_annotation_counts.tsv"))
     if go_counts is not None:
-        master = master.merge(
-            go_counts[["Gene", "n_go_annotations"]].drop_duplicates("Gene"),
-            on="Gene", how="left",
-        )
+        master = merge_on_symbol(master, go_counts, ["n_go_annotations"])
         master["n_go_annotations"] = (
             pd.to_numeric(master["n_go_annotations"], errors="coerce").fillna(0).astype(int)
         )
@@ -213,7 +234,7 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
         # one row per symbol keeping the largest count, matching the policy in
         # utils/moe_annotation_bias_baseline.py so the two agree on n.
         pubmed = pubmed.groupby("Gene", as_index=False)["n_pubmed"].max()
-        master = master.merge(pubmed, on="Gene", how="left")
+        master = merge_on_symbol(master, pubmed, ["n_pubmed"])
         master["n_pubmed"] = (
             pd.to_numeric(master["n_pubmed"], errors="coerce").fillna(0).astype(int)
         )
@@ -226,9 +247,7 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     hpo = read_table(os.path.join(data_dir, "gene_hpo_terms.tsv"))
     if hpo is not None and "n_hpo_terms" in hpo.columns:
         hpo = hpo[hpo["Gene"] != "-"]
-        master = master.merge(
-            hpo[["Gene", "n_hpo_terms"]].drop_duplicates("Gene"), on="Gene", how="left"
-        )
+        master = merge_on_symbol(master, hpo, ["n_hpo_terms"])
         master["n_hpo_terms"] = (
             pd.to_numeric(master["n_hpo_terms"], errors="coerce").fillna(0).astype(int)
         )
@@ -237,10 +256,7 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
 
     clingen = read_table(os.path.join(data_dir, "gene_clingen_hi.tsv"))
     if clingen is not None and "ClinGen_HI_score" in clingen.columns:
-        master = master.merge(
-            clingen[["Gene", "ClinGen_HI_score"]].drop_duplicates("Gene"),
-            on="Gene", how="left",
-        )
+        master = merge_on_symbol(master, clingen, ["ClinGen_HI_score"])
     else:
         master["ClinGen_HI_score"] = pd.NA
 
