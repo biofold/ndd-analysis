@@ -117,14 +117,24 @@ def main():
     print(f"\ngnomAD v{args.version} file: {len(gnomad)} rows, {gnomad['Gene'].nunique()} unique gene symbols "
           f"({n_dup_genes} extra rows per already-seen gene symbol)")
 
-    merged = dbnsfp.merge(gnomad.drop_duplicates(subset="Gene", keep="first"), on="Gene", how="inner")
+    merged_all = dbnsfp.merge(gnomad.drop_duplicates(subset="Gene", keep="first"), on="Gene", how="inner")
+    # "comparable" means both values are actually present -- an inner join on Gene alone
+    # does NOT guarantee that, since either source table can carry a NaN value for a gene
+    # it still lists a row for (e.g. dbNSFP genes with no dbNSFP-side pLI, or gnomAD genes
+    # with an incalculable constraint estimate). Filtering this explicitly, rather than
+    # letting NaN silently fall out of the "< 1e-6" exact-match check and get miscounted
+    # as a mismatch, is required for n_mismatch below to mean anything.
+    n_present_only_one_side = merged_all[["gnomAD_pLI", "pLI_gnomad_direct"]].isna().any(axis=1).sum()
+    merged = merged_all.dropna(subset=["gnomAD_pLI", "pLI_gnomad_direct"]).copy()
     merged["abs_diff"] = (merged["gnomAD_pLI"] - merged["pLI_gnomad_direct"]).abs()
 
     n_total = len(merged)
     n_exact = (merged["abs_diff"] < 1e-6).sum()
     n_mismatch = n_total - n_exact
 
-    print(f"\nGenes comparable (non-missing in both): {n_total}")
+    print(f"\nGenes matched by symbol: {len(merged_all)} "
+          f"({n_present_only_one_side} of those have a missing value on at least one side, excluded below)")
+    print(f"Genes comparable (non-missing in both): {n_total}")
     print(f"Exact match (|diff| < 1e-6): {n_exact} ({n_exact / n_total:.2%})")
     print(f"Mismatch: {n_mismatch} ({n_mismatch / n_total:.2%})")
 

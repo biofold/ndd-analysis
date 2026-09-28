@@ -53,13 +53,14 @@ gnomAD's own gene constraint table directly (from gnomAD's AWS Open
 Data bucket, arn:aws:s3:::gnomad-public-us-east-1) and compares:
 
 - `data/raw/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz` (same-version
-  check): 98.1% of comparable genes match dbNSFP's value exactly; all
-  but 1 of the 335 non-matches are genes with more than one transcript
-  row in gnomAD's own v2.1.1 file (no unambiguous canonical-transcript
-  flag in that release) -- i.e. dbNSFP is confirmed to be a faithful
-  pass-through of gnomAD v2.1.1, not an independent recomputation.
+  check): of 17,268 genes comparable (non-missing on both sides),
+  99.86% (17,243) match dbNSFP's value exactly; ALL 25 non-matches are
+  genes with more than one transcript row in gnomAD's own v2.1.1 file
+  (no unambiguous canonical-transcript flag in that release) -- i.e.
+  dbNSFP is confirmed to be a faithful pass-through of gnomAD v2.1.1,
+  not an independent recomputation, with zero unexplained discrepancy.
 - `data/raw/gnomad.v4.1.constraint_metrics.tsv.gz` (cross-version
-  check, MANE-Select-filtered to one row/gene): only 26.5% exact match
+  check, MANE-Select-filtered to one row/gene): only 28.9% exact match
   against v2.1.1, but Spearman rho=0.834 (n=15,875) -- gnomAD v4.1 used
   a ~6x larger cohort and explicitly recalculated pLI (recommending
   LOEUF as the primary constraint metric going forward), so the two
