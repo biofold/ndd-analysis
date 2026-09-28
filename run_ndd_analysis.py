@@ -1168,6 +1168,19 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
             "--png"
         ] + extra_args, step_name=f"Generating {label}", env_name=conda_env)
 
+    # Part E.2: MONDO vs HPO term coverage across MOE tiers (R2.10)
+    print("\n--- Part E.2: MONDO / HPO coverage by MOE tier (R2.10) ---", file=sys.stderr)
+    mondo_hpo_script = get_absolute_path("utils/mondo_hpo_by_moe.py")
+    if Path(mondo_hpo_script).exists():
+        run_command_conda([
+            "python", str(mondo_hpo_script),
+            str(master_table),
+            "--output-prefix", str(figures_dir / "mondo_hpo_by_moe"),
+            "--png"
+        ], step_name="Generating MONDO/HPO coverage by MOE tier", env_name=conda_env)
+    else:
+        sys.stderr.write(f"Warning: {mondo_hpo_script} not found; skipping MONDO/HPO coverage\n")
+
     # Part F: promote the validation tables into docs/tables with table numbers
     print("\n--- Part F: Copying validation tables ---", file=sys.stderr)
     validation_tables = [
@@ -1176,6 +1189,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "moe_annotation_bias_baseline_auc.tsv", "table_s11.tsv"),
         (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
         (validation_dir / "moe_annotation_density_correlations.tsv", "table_s13.tsv"),
+        (figures_dir / "mondo_hpo_by_moe.tsv", "table_s14.tsv"),
     ]
     for src_file, new_name in validation_tables:
         if copy_file(src_file, tables_dir, new_name):
