@@ -45,6 +45,33 @@ Both derived tables were cross-checked against ndd_master_table.tsv and
 match exactly (0/19,354 gene-level mismatches on the ClinVar counts;
 exact value match on gnomAD_pLI for spot-checked genes).
 
+### Provenance check: dbNSFP's gnomAD_pLI vs gnomAD's own release
+
+`gnomAD_pLI` (as pulled from dbNSFP above) is specifically gnomAD's
+**v2.1.1** pLI value. `utils/verify_gnomad_pli_source.py` fetches
+gnomAD's own gene constraint table directly (from gnomAD's AWS Open
+Data bucket, arn:aws:s3:::gnomad-public-us-east-1) and compares:
+
+- `data/raw/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz` (same-version
+  check): 98.1% of comparable genes match dbNSFP's value exactly; all
+  but 1 of the 335 non-matches are genes with more than one transcript
+  row in gnomAD's own v2.1.1 file (no unambiguous canonical-transcript
+  flag in that release) -- i.e. dbNSFP is confirmed to be a faithful
+  pass-through of gnomAD v2.1.1, not an independent recomputation.
+- `data/raw/gnomad.v4.1.constraint_metrics.tsv.gz` (cross-version
+  check, MANE-Select-filtered to one row/gene): only 26.5% exact match
+  against v2.1.1, but Spearman rho=0.834 (n=15,875) -- gnomAD v4.1 used
+  a ~6x larger cohort and explicitly recalculated pLI (recommending
+  LOEUF as the primary constraint metric going forward), so the two
+  versions ranking genes similarly while disagreeing on point
+  estimates is expected, not a bug. See
+  `data/gnomad_pli_v41_vs_v211_comparison.tsv` for the full per-gene
+  comparison. ndd_master_table.tsv's gnomAD_pLI column remains the
+  v2.1.1 value throughout this pipeline; switching to v4.1 would
+  require re-baselining every downstream analysis, not just adding a
+  check.
+  `python utils/verify_gnomad_pli_source.py --version 4.1 --input data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --dbnsfp-pli-table data/gene_gnomad_pli.tsv`
+
 ## Useful links
 1. DDG2P   https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz \
            https://ftp.ebi.ac.uk/pub/databases/gene2phenotype
