@@ -111,6 +111,34 @@ gnomAD_pLI has a working direct source (see the provenance-check
 section above) but has not yet been swapped in as the master table's
 live source the way HPO/ClinGen were.
 
+## GO Slim libraries (R1.2 redundancy reduction)
+
+Enrichr provides no GO Slim library, so `libs/GOslim_{Biological_Process,
+Cellular_Component,Molecular_Function}_2026.gmt` are built from GO's own files
+with the GO Consortium's map2slim (OWLTools):
+
+1. `data/raw/go-basic_2026-07-26.obo.gz` -- GO release 2026-07-26
+   (https://current.geneontology.org/ontology/go-basic.obo, downloaded 2026-09-29).
+2. `data/raw/goslim_generic_2026-07-26.obo.gz` -- generic GO Slim, 140 terms, same
+   release (https://current.geneontology.org/ontology/subsets/goslim_generic.obo),
+   kept for reference; the subset membership used is the `subset: goslim_generic`
+   tag in (1).
+3. `data/raw/goa_human_2026-05-21.gaf.gz` -- human GO annotations, date-generated
+   2026-05-21 (https://current.geneontology.org/annotations/goa_human.gaf.gz,
+   downloaded 2026-09-29).
+
+map2slim assigns each annotation to its most specific slim term(s); the script
+then adds every gene to all slim terms above those (is_a + part_of), so each slim
+gene set contains every gene annotated to it at any depth. NOT-qualified and ND
+annotations are removed. Needs Java and OWLTools 2024-06-12
+(https://github.com/owlcollab/owltools/releases/download/2024-06-12/owltools);
+neither is needed to run the pipeline itself.
+
+  `python utils/enrichment/build_goslim_gmt.py --owltools /path/to/owltools --go-obo data/raw/go-basic_2026-07-26.obo.gz --gaf data/raw/goa_human_2026-05-21.gaf.gz --outdir libs --report libs/GOslim_2026_build_report.tsv`
+
+Result: BP 69, CC 25, MF 38 slim terms (counts per library in
+`libs/GOslim_2026_build_report.tsv`).
+
 ## Useful links
 1. DDG2P   https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz \
            https://ftp.ebi.ac.uk/pub/databases/gene2phenotype

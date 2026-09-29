@@ -11,7 +11,7 @@ Every script here is invoked by `run_ndd_analysis.py` (or, for
   against gnomAD's own release.
 
 - **`enrichment/`** — build or post-process Enrichr/gseapy enrichment
-  results: `build_goslim_gmt.py` maps the full-GO libraries down to GO Slim;
+  results: `build_goslim_gmt.py` builds the GO Slim libraries from GO's human annotations with the GO Consortium's map2slim (see data/README.md);
   `enrichr_odds_ratio_ci.py` appends a 95% CI to the Odds Ratio column
   (wired into `scripts/1_enrichr_all.py` — every enrichment table the
   pipeline produces gets `OR_CI_low`/`OR_CI_high` automatically).

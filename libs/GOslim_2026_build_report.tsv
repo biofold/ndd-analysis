@@ -1,0 +1,11 @@
+# go_obo	go-basic_2026-07-26.obo.gz (releases/2026-07-26)
+# gaf	goa_human_2026-05-21.gaf.gz (date-generated 2026-05-21T08:10)
+# subset	goslim_generic (140 terms)
+# slim_annotations	560513
+# removed_NOT	1465
+# removed_ND	0
+# annotations_without_slim_term	422027
+library	slim_terms	genes	gene_term_pairs_most_specific	gene_term_pairs_propagated
+GOslim_Biological_Process_2026.gmt	69	26210	68251	68935
+GOslim_Cellular_Component_2026.gmt	25	27408	56635	81880
+GOslim_Molecular_Function_2026.gmt	38	23018	37650	44877
