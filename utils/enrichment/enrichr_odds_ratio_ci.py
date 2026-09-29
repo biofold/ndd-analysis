@@ -24,17 +24,20 @@ background size, the whole table is determined:
     c = n - k
     d = background_size - list_size - (n - k)
 
-which reproduces Enrichr's own Odds Ratio = a*d / (b*c) (matches to within
-floating-point/universe-filtering differences -- verified against
-results/main/gene_set1_GO_Biological_Process_2026.tsv).
+which reproduces GSEApy's own Odds Ratio column — not Enrichr's, since the
+pipeline's calls to gp.enrichr() always pass a local .gmt file plus a custom
+background, routing them to GSEApy's offline enrich_local() rather than the real
+Enrichr web service — once the same Haldane-Anscombe +0.5 correction gseapy itself
+applies to every cell, on every row, is included (verified across all 3,352 rows of
+results/main/gene_set1_GO_Biological_Process_Cancer_2026.tsv (list_size=6,856), where
+the corrected formula matches the file's Odds Ratio column exactly).
 
 The 95% CI is the standard Wald interval on the log odds ratio (mirroring
 utils/moe_clinvar_validation.py's odds_ratio_ci, which does the same thing for
 the MOE-threshold operating-characteristics table): SE(log OR) =
-sqrt(1/a + 1/b + 1/c + 1/d), with a Haldane-Anscombe +0.5 correction to every
-cell when any cell is zero (only possible here if a term's Overlap equals the
-whole query list or the whole background, which does not happen in practice
-but is guarded against).
+sqrt(1/a + 1/b + 1/c + 1/d),computed on the same Haldane-Anscombe-corrected cells
+(+0.5 to a, b, c, d unconditionally, on every row) used for the Odds Ratio itself
+above.
 
 Usage:
   python3 utils/enrichr_odds_ratio_ci.py \
@@ -51,12 +54,13 @@ import pandas as pd
 
 
 def odds_ratio_ci(a, b, c, d):
-    """Odds ratio with 95% CI on the log scale; Haldane-Anscombe +0.5
-    correction applied uniformly when any cell is zero, to avoid an
-    undefined or infinite OR. Mirrors moe_clinvar_validation.py's
-    odds_ratio_ci for the same reason."""
-    if 0 in (a, b, c, d):
-        a, b, c, d = a + 0.5, b + 0.5, c + 0.5, d + 0.5
+    """Odds ratio with 95% CI on the log scale. Haldane-Anscombe +0.5 is
+    applied to every cell unconditionally, matching gseapy's own Odds Ratio
+    column (gseapy.stats.calc_pvalues uses bu = 0.5 added to every cell on
+    every row, not only when a cell is zero -- see GSEApy issue #132), so
+    the point estimate computed here reproduces the Odds Ratio already in
+    the file, and the CI is centered on that same value."""
+    a, b, c, d = a + 0.5, b + 0.5, c + 0.5, d + 0.5
     or_est = (a * d) / (b * c)
     log_or = np.log(or_est)
     se_log_or = np.sqrt(1 / a + 1 / b + 1 / c + 1 / d)
