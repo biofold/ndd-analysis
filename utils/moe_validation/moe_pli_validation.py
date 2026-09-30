@@ -145,14 +145,22 @@ def main():
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(7, 5))
-    tiers = sorted(df_complete["MOE_score"].unique())
+    tiers = sorted(int(t) for t in df_complete["MOE_score"].unique())
     data = [df_complete.loc[df_complete["MOE_score"] == t, col].values for t in tiers]
-    bp = ax.boxplot(data, positions=tiers, widths=0.6, patch_artist=True, showfliers=False)
-    for patch in bp["boxes"]:
-        patch.set_facecolor("#4689a3")
-        patch.set_alpha(0.7)
-    for median in bp["medians"]:
-        median.set_color("#333333")
+    # Violins: kernel density per tier, clipped to the observed range (pLI is bounded
+    # in [0, 1]); the inner bar is the interquartile range, the white dot the median.
+    vp = ax.violinplot(data, positions=tiers, widths=0.8, showextrema=False,
+                       showmedians=False)
+    for body in vp["bodies"]:
+        body.set_facecolor("#4689a3")
+        body.set_edgecolor("#333333")
+        body.set_linewidth(0.6)
+        body.set_alpha(0.6)
+    q1 = [np.percentile(d, 25) for d in data]
+    med = [np.median(d) for d in data]
+    q3 = [np.percentile(d, 75) for d in data]
+    ax.vlines(tiers, q1, q3, color="#333333", linewidth=4)
+    ax.scatter(tiers, med, color="white", edgecolor="#333333", s=22, zorder=3)
     ax.set_xlabel("MOE score")
     ax.set_ylabel(label)
     ax.set_title(
@@ -161,15 +169,16 @@ def main():
         fontsize=11,
     )
     ax.set_xticks(tiers)
+    ax.set_xticklabels([f"{t}\n(n = {len(d):,})" for t, d in zip(tiers, data)])
     for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_color("#333333")
     fig.tight_layout()
 
-    out_fig = os.path.join(args.output_dir, f"moe_{tag}_by_tier_boxplot.png")
+    out_fig = os.path.join(args.output_dir, f"moe_{tag}_by_tier_violin.png")
     fig.savefig(out_fig, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print(f"\nBoxplot figure saved to: {out_fig}")
+    print(f"\nViolin figure saved to: {out_fig}")
 
 
 if __name__ == "__main__":
