@@ -1,4 +1,6 @@
 #!/bin/bash
+# Significance is adjusted p < 0.01 (strict), on unrounded values; the
+# complement is >= 0.01. Same rule as the MOE score (scripts/2_supercandidate.py).
 
 # Default column numbers
 COL9=9
@@ -73,59 +75,59 @@ echo -e "Matrix 1:\tGeneSet: All "
 
 # Matrix 1: $11 condition not considered
 # Row 1: GeneSet header
-# Row 2: cancer<=0.01
-# Row 3: cancer>0.01
+# Row 2: cancer<0.01
+# Row 3: cancer>=0.01
 # Col 1: empty/GeneSet
-# Col 2: non-cancer>0.01
-# Col 3: non-cancer<=0.01
+# Col 2: non-cancer>=0.01
+# Col 3: non-cancer<0.01
 
-# Cell (cancer<=0.01, non-cancer>0.01): count all, (count with $NF<=0.01)
-m1_r1c1_all=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10>0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m1_r1c1_nf=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10>0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer<0.01, non-cancer>=0.01): count all, (count with $NF<0.01)
+m1_r1c1_all=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10>=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m1_r1c1_nf=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10>=0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
-# Cell (cancer<=0.01, non-cancer<=0.01)
-m1_r1c2_all=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m1_r1c2_nf=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10<=0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer<0.01, non-cancer<0.01)
+m1_r1c2_all=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10<0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m1_r1c2_nf=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10<0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
-# Cell (cancer>0.01, non-cancer>0.01)
-m1_r2c1_all=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10>0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m1_r2c1_nf=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10>0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer>=0.01, non-cancer>=0.01)
+m1_r2c1_all=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10>=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m1_r2c1_nf=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10>=0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
-# Cell (cancer>0.01, non-cancer<=0.01)
-m1_r2c2_all=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m1_r2c2_nf=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10<=0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer>=0.01, non-cancer<0.01)
+m1_r2c2_all=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10<0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m1_r2c2_nf=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10<0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
 # Print Matrix 1
-echo -e "GeneSet\tnon-cancer>0.01\tnon-cancer<=0.01"
-echo -e "cancer<=0.01\t${m1_r1c1_all} (${m1_r1c1_nf})\t${m1_r1c2_all} (${m1_r1c2_nf})"
-echo -e "cancer>0.01\t${m1_r2c1_all} (${m1_r2c1_nf})\t${m1_r2c2_all} (${m1_r2c2_nf})"
+echo -e "GeneSet\tnon-cancer>=0.01\tnon-cancer<0.01"
+echo -e "cancer<0.01\t${m1_r1c1_all} (${m1_r1c1_nf})\t${m1_r1c2_all} (${m1_r1c2_nf})"
+echo -e "cancer>=0.01\t${m1_r2c1_all} (${m1_r2c1_nf})\t${m1_r2c2_all} (${m1_r2c2_nf})"
 echo -e "\t"
 
 #echo "======================================================================"
-echo -e "Matrix 2:\tGeneSet: <=0.01"
+echo -e "Matrix 2:\tGeneSet: <0.01"
 #echo "======================================================================"
 
-# Matrix 2: $11<=0.01 condition
-# Cell (cancer<=0.01, non-cancer>0.01)
-m2_r1c1_all=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10>0.01 && $AWK_COL11<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m2_r1c1_nf=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10>0.01 && $AWK_COL11<=0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Matrix 2: $11<0.01 condition
+# Cell (cancer<0.01, non-cancer>=0.01)
+m2_r1c1_all=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10>=0.01 && $AWK_COL11<0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m2_r1c1_nf=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10>=0.01 && $AWK_COL11<0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
-# Cell (cancer<=0.01, non-cancer<=0.01)
-m2_r1c2_all=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10<=0.01 && $AWK_COL11<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m2_r1c2_nf=$(awk "NR>0 && $AWK_COL9<=0.01 && $AWK_COL10<=0.01 && $AWK_COL11<=0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer<0.01, non-cancer<0.01)
+m2_r1c2_all=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10<0.01 && $AWK_COL11<0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m2_r1c2_nf=$(awk "NR>0 && $AWK_COL9<0.01 && $AWK_COL10<0.01 && $AWK_COL11<0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
-# Cell (cancer>0.01, non-cancer>0.01)
-m2_r2c1_all=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10>0.01 && $AWK_COL11<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m2_r2c1_nf=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10>0.01 && $AWK_COL11<=0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer>=0.01, non-cancer>=0.01)
+m2_r2c1_all=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10>=0.01 && $AWK_COL11<0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m2_r2c1_nf=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10>=0.01 && $AWK_COL11<0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
-# Cell (cancer>0.01, non-cancer<=0.01)
-m2_r2c2_all=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10<=0.01 && $AWK_COL11<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
-m2_r2c2_nf=$(awk "NR>0 && $AWK_COL9>0.01 && $AWK_COL10<=0.01 && $AWK_COL11<=0.01 && $AWK_COLNF<=0.01 {count++} END {print count+0}" "$INPUT_FILE")
+# Cell (cancer>=0.01, non-cancer<0.01)
+m2_r2c2_all=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10<0.01 && $AWK_COL11<0.01 {count++} END {print count+0}" "$INPUT_FILE")
+m2_r2c2_nf=$(awk "NR>0 && $AWK_COL9>=0.01 && $AWK_COL10<0.01 && $AWK_COL11<0.01 && $AWK_COLNF<0.01 {count++} END {print count+0}" "$INPUT_FILE")
 
 # Print Matrix 2
-echo -e "GeneSet<=0.01\tnon-cancer>0.01\tnon-cancer<=0.01"
-echo -e "cancer<=0.01\t${m2_r1c1_all} (${m2_r1c1_nf})\t${m2_r1c2_all} (${m2_r1c2_nf})"
-echo -e "cancer>0.01\t${m2_r2c1_all} (${m2_r2c1_nf})\t${m2_r2c2_all} (${m2_r2c2_nf})"
+echo -e "GeneSet<0.01\tnon-cancer>=0.01\tnon-cancer<0.01"
+echo -e "cancer<0.01\t${m2_r1c1_all} (${m2_r1c1_nf})\t${m2_r1c2_all} (${m2_r1c2_nf})"
+echo -e "cancer>=0.01\t${m2_r2c1_all} (${m2_r2c1_nf})\t${m2_r2c2_all} (${m2_r2c2_nf})"
 echo -e "\t"
 
 #echo "======================================================================"
@@ -133,4 +135,4 @@ line_count=`wc -l < "$INPUT_FILE" |awk '{print $1}' `
 echo -e "Total lines:\t${line_count}"
 echo ""
 #echo "Note: Column mapping: cancer=col$COL9, non_cancer=col$COL10, gene_set=col$COL11, cancer_vs_non_cancer=col$COLNF"
-#echo "Note: Numbers in parentheses indicate counts where cancer_vs_non_cancer<=0.01"
+#echo "Note: Numbers in parentheses indicate counts where cancer_vs_non_cancer<0.01"

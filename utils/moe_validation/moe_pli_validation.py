@@ -110,7 +110,7 @@ def main():
     coef_table["or_ci_high"] = np.exp(ci[1].values)
 
     out_table = os.path.join(args.output_dir, f"moe_{tag}_logistic_regression.tsv")
-    coef_table.to_csv(out_table, sep="\t", index=False, float_format="%.4g")
+    coef_table.to_csv(out_table, sep="\t", index=False)
     print(f"Joint logistic regression: P({clinvar_col} > 0) ~ MOE_score + {col}")
     print(coef_table.to_string(index=False))
     print(f"\nModel table saved to: {out_table}")
@@ -136,7 +136,7 @@ def main():
         .reset_index()
     )
     out_tiers = os.path.join(args.output_dir, f"moe_{tag}_by_tier.tsv")
-    tier_stats.to_csv(out_tiers, sep="\t", index=False, float_format="%.4g")
+    tier_stats.to_csv(out_tiers, sep="\t", index=False)
     print(f"\n{col} by MOE score tier:\n{tier_stats.to_string(index=False)}")
     print(f"\nPer-tier summary saved to: {out_tiers}")
 

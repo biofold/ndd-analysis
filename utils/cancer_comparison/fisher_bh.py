@@ -122,19 +122,21 @@ def format_output(results, adjusted_p_values=None):
             result['side']
         ])
         '''
+        # Full precision (shortest exact repr): calculate_table_compara.sh
+        # thresholds these values, and rounding before a threshold can flip it.
         output_parts.extend([
-            f"{result['odds_ratio']:.3f}",
-            f"{result['p_value_left']:.2e}",
-            f"{result['p_value_right']:.2e}",
-            f"{result['p_value']:.2e}",
-            f"{result['p_value_two_sided']:.2e}",
-            f"{result['z_score']:.2f}",
+            repr(float(result['odds_ratio'])),
+            repr(float(result['p_value_left'])),
+            repr(float(result['p_value_right'])),
+            repr(float(result['p_value'])),
+            repr(float(result['p_value_two_sided'])),
+            repr(float(result['z_score'])),
             result['side']
         ])
         
         # Add BH corrected p-value if available
         if adjusted_p_values is not None:
-            output_parts.append(f"{adjusted_p_values[idx]:.2e}")
+            output_parts.append(repr(float(adjusted_p_values[idx])))
         
         output_lines.append('\t'.join(output_parts))
     

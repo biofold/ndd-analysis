@@ -129,7 +129,8 @@ def delong_test(y, s1, s2):
 
 # --------------------------------------------------------------------------
 def fmt_p(p):
-    return "<2.2e-308" if p == 0 else f"{p:.3g}"
+    # full precision (no rounding); an exact 0 is an underflow, reported as a bound
+    return "<2.2e-308" if p == 0 else repr(float(p))
 
 
 def phi_and_jaccard(a, b):
@@ -330,9 +331,9 @@ def main():
         for b in COMPONENTS[i + 1:]:
             phi, jac, n11, n10, n01, n00 = phi_and_jaccard(cand[a].values, cand[b].values)
             red.append({"component_1": COMPONENT_LABEL[a], "component_2": COMPONENT_LABEL[b],
-                        "phi": round(phi, 3), "jaccard": round(jac, 3),
+                        "phi": phi, "jaccard": jac,
                         "both": n11, "only_1": n10, "only_2": n01, "neither": n00})
-    prev = {COMPONENT_LABEL[c]: round(cand[c].mean(), 3) for c in COMPONENTS}
+    prev = {COMPONENT_LABEL[c]: cand[c].mean() for c in COMPONENTS}
     red = pd.DataFrame(red)
     red.to_csv(f"{args.output_prefix}_redundancy.tsv", sep="\t", index=False)
 
@@ -344,11 +345,11 @@ def main():
     evr = eigval / eigval.sum()
     pca = pd.DataFrame({
         "principal_component": [f"PC{i+1}" for i in range(len(evr))],
-        "explained_variance_ratio": np.round(evr, 3),
-        "cumulative": np.round(np.cumsum(evr), 3),
+        "explained_variance_ratio": evr,
+        "cumulative": np.cumsum(evr),
     })
     for j, c in enumerate(COMPONENTS):
-        pca[f"loading_{COMPONENT_LABEL[c].replace(' ', '_')}"] = np.round(eigvec[j, :] * np.sign(eigvec[:, 0].sum()), 3)
+        pca[f"loading_{COMPONENT_LABEL[c].replace(' ', '_')}"] = eigvec[j, :] * np.sign(eigvec[:, 0].sum())
     pca.to_csv(f"{args.output_prefix}_pca.tsv", sep="\t", index=False)
 
     # ---- 3. HPO component -------------------------------------------------
@@ -386,9 +387,9 @@ def main():
             else:
                 d, p = delong_test(ym, sm, ref)
             rows.append({"outcome": oname, "n": int(mask.sum()), "n_positive": int(ym.sum()),
-                         "score": vname, "roc_auc": round(auc, 3),
-                         "auc_ci_low": round(lo, 3), "auc_ci_high": round(hi_, 3),
-                         "delta_auc_vs_MOE": round(d, 3),
+                         "score": vname, "roc_auc": auc,
+                         "auc_ci_low": lo, "auc_ci_high": hi_,
+                         "delta_auc_vs_MOE": d,
                          "delong_p_vs_MOE": "" if np.isnan(p) else fmt_p(p)})
     variants_df = pd.DataFrame(rows)
     variants_df.to_csv(f"{args.output_prefix}_score_variants.tsv", sep="\t", index=False)
@@ -407,9 +408,9 @@ def main():
             prec = tp / (tp + fp) if tp + fp else np.nan
             f1 = 2 * prec * sens / (prec + sens) if prec + sens else np.nan
             trows.append({"outcome": oname, "moe_cutoff": f">={cut}", "n_selected": tp + fp,
-                          "sensitivity": round(sens, 3), "specificity": round(spec, 3),
-                          "precision": round(prec, 3), "youden_j": round(sens + spec - 1, 3),
-                          "f1": round(f1, 3)})
+                          "sensitivity": sens, "specificity": spec,
+                          "precision": prec, "youden_j": sens + spec - 1,
+                          "f1": f1})
     thr = pd.DataFrame(trows)
     for oname in thr["outcome"].unique():
         sub = thr[thr["outcome"] == oname]
@@ -427,8 +428,8 @@ def main():
         m = cand["MOE_score"].values == t
         k, n = int(y_hi[m].sum()), int(m.sum())
         lo, up = wilson(k, n)
-        hrows.append({"moe_score": t, "n_genes": n, "n_hi3": k, "fraction": round(k / n, 4),
-                      "ci_low": round(lo, 4), "ci_high": round(up, 4)})
+        hrows.append({"moe_score": t, "n_genes": n, "n_hi3": k, "fraction": k / n,
+                      "ci_low": lo, "ci_high": up})
     z, p_trend = cochran_armitage(cand["MOE_score"].values, y_hi)
     pred = cand["MOE_score"].values >= 4
     tab = [[int((pred & (y_hi == 1)).sum()), int((pred & (y_hi == 0)).sum())],
@@ -457,9 +458,9 @@ def main():
         n = len(cand)
         zf = np.arctanh(rho); se_z = 1 / np.sqrt(n - 3)
         arows.append({"analysis": "spearman", "measure": label, "stratum": "all candidates",
-                      "n": n, "n_positive": "", "value": round(rho, 3),
-                      "ci_low": round(np.tanh(zf - 1.96 * se_z), 3),
-                      "ci_high": round(np.tanh(zf + 1.96 * se_z), 3), "p": fmt_p(p)})
+                      "n": n, "n_positive": "", "value": rho,
+                      "ci_low": np.tanh(zf - 1.96 * se_z),
+                      "ci_high": np.tanh(zf + 1.96 * se_z), "p": fmt_p(p)})
     npub = pd.to_numeric(cand["n_pubmed"], errors="coerce")
     ok = npub.notna().values
     q = pd.qcut(npub[ok].rank(method="first"), 4, labels=["Q1 (least studied)", "Q2", "Q3", "Q4 (most studied)"])
@@ -472,7 +473,7 @@ def main():
         arows.append({"analysis": "MOE ROC-AUC for ClinVar P/LP within PubMed-count quartile",
                       "measure": f"PubMed records {int(rng.min())}-{int(rng.max())}",
                       "stratum": lab, "n": int(m.sum()), "n_positive": int(ysub[m].sum()),
-                      "value": round(auc, 3), "ci_low": round(lo, 3), "ci_high": round(up, 3),
+                      "value": auc, "ci_low": lo, "ci_high": up,
                       "p": ""})
     pd.DataFrame(arows).to_csv(f"{args.output_prefix}_annotation_strata.tsv", sep="\t", index=False)
 
@@ -483,9 +484,9 @@ def main():
         **hpo_info,
         "candidates_with_any_hpo_annotation": int(has_hpo.sum()),
         "candidates_receiving_hpo_point": int(cand["HPO_point"].sum()),
-        "hpo_point_among_hpo_annotated": round(cand.loc[has_hpo, "HPO_point"].mean(), 3),
+        "hpo_point_among_hpo_annotated": cand.loc[has_hpo, "HPO_point"].mean(),
         "clingen_hi3_total": int(y_hi.sum()),
-        "clingen_trend_z": round(z, 3), "clingen_trend_p": fmt_p(p_trend),
+        "clingen_trend_z": z, "clingen_trend_p": fmt_p(p_trend),
     }
     pd.Series(summary).to_csv(f"{args.output_prefix}_summary.tsv", sep="\t", header=False)
     for k, v in summary.items():

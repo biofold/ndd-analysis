@@ -147,7 +147,7 @@ def main():
 
     table = pd.DataFrame(rows)
     out_table = os.path.join(args.output_dir, "moe_clinvar_operating_characteristics.tsv")
-    table.to_csv(out_table, sep="\t", index=False, float_format="%.4g")
+    table.to_csv(out_table, sep="\t", index=False)
     print(f"Operating-characteristics table saved to: {out_table}\n")
     print(table.to_string(index=False))
 

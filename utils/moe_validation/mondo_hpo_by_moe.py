@@ -98,7 +98,7 @@ def main():
     print(counts.to_string(index=False))
     out_tsv = f"{args.output_prefix}.tsv"
     os.makedirs(os.path.dirname(out_tsv) or ".", exist_ok=True)
-    counts.to_csv(out_tsv, sep="\t", index=False, float_format="%.4f")
+    counts.to_csv(out_tsv, sep="\t", index=False)
     print(f"\nCounts saved to: {out_tsv}")
 
     x = np.arange(len(counts))

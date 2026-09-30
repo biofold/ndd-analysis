@@ -29,7 +29,9 @@ def process_enrichment(enrichment_file, p_threshold=0.01):
                 try:
                     if len(parts) >= 5:
                         adj_pvalue = float(parts[4])  # 5th column (0-indexed)
-                        if adj_pvalue <= p_threshold:
+                        # strict '<' like every other threshold; p >= 1 means
+                        # "no filter" (the pipeline passes -p 1.00 for all terms)
+                        if p_threshold >= 1 or adj_pvalue < p_threshold:
                             significant_terms.add(parts[1])  # Term is in 2nd column
                 except (IndexError, ValueError) as e:
                     print(f'WARNING: Line {line_num} - {str(e)}', file=sys.stderr)
@@ -190,7 +192,7 @@ def process_files(score_file, background_file, enrichment_file, gmt_file, p_thre
     
     # 2. Term-centric view
     if verbose:
-        output.append("\n# Term Analysis (adj. p <= {p_threshold}):")
+        output.append("\n# Term Analysis (adj. p < {p_threshold}):")
         for term in sorted(term_score_genes.keys()):
             total_genes = sum(len(genes) for genes in term_score_genes[term].values())
             output.append(f"\n{term}: {total_genes} unique genes")
@@ -209,7 +211,7 @@ def process_files(score_file, background_file, enrichment_file, gmt_file, p_thre
     # Print summary to stderr
     print(f"\nAnalysis complete:", file=sys.stderr)
     print(f"- Processed {len(gene_scores)} total genes", file=sys.stderr)
-    print(f"- Found {len(significant_terms)} significant terms at adj. p <= {p_threshold}", file=sys.stderr)
+    print(f"- Found {len(significant_terms)} significant terms at adj. p < {p_threshold}", file=sys.stderr)
     print(f"- {len(all_term_genes & gene_scores.keys())} unique genes in significant terms", file=sys.stderr)
     print(f"- {len(score_groups)} score groups analyzed", file=sys.stderr)
 

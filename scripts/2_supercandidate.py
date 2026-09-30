@@ -11,10 +11,59 @@ libs = ['GO_Biological_Process_2026',
         'KEGG_2021_Human', 
         'Reactome_Pathways_2024']
 
+# Selection rule: a term is significant when its adjusted p-value, at the full
+# precision written by gseapy, is strictly below the threshold. On unrounded
+# values '<' and '<=' select the same terms (no adjusted p-value equals 0.01
+# exactly), but on ROUNDED values the MOE score changes: rounding to 3 decimals
+# drops terms just below 0.01 with '<' (e.g. 0.009994 -> 0.010) and admits terms
+# just above it with '<=' (0.01008 -> 0.010) -- 26 / 29 candidates change.
+# read_enrichment() therefore refuses tables whose p-values look rounded.
+PVAL_COL = 'Adjusted P-value'
+ROUNDED_MAX_SIGDIGITS = 6      # full-precision floats are written with 15-20
+DECISION_ZONE = (0.005, 0.02)  # reported separately: rounding here can cross the cutoff
+
+
+def _significant_digits(text):
+    """Number of significant digits in a numeric string (e.g. '0.0100' -> 1)."""
+    m = text.strip().lower().lstrip('+-').split('e')[0].replace('.', '').lstrip('0').rstrip('0')
+    return len(m)
+
+
+def check_pvalue_precision(raw, path):
+    """Stop if any adjusted p-value looks rounded (policy: no rounding anywhere).
+
+    raw: the adjusted p-value column read as text, exactly as stored. Exact 0
+    (underflow) and 1 (the Benjamini-Hochberg cap) are legitimately short.
+    """
+    raw = raw.dropna().astype(str)
+    vals = pd.to_numeric(raw, errors='coerce')
+    ok = vals.notna() & (vals > 0) & (vals < 1)
+    raw, vals = raw[ok], vals[ok]
+    if raw.empty:
+        return
+    short = raw.map(_significant_digits) <= ROUNDED_MAX_SIGDIGITS
+    if short.any():
+        lo, hi = DECISION_ZONE
+        n_zone = int((short & (vals >= lo) & (vals <= hi)).sum())
+        ex = ", ".join(raw[short].head(5))
+        sys.exit(f"Error: {path}: {int(short.sum())} adjusted p-values look rounded "
+                 f"(<= {ROUNDED_MAX_SIGDIGITS} significant digits, e.g. {ex}; {n_zone} of them "
+                 f"between {lo} and {hi}). Selecting terms on rounded values changes MOE "
+                 f"scores; regenerate the table at full precision (scripts/1_enrichr_all.py).")
+
+
+def read_enrichment(enrichment_file):
+    """Read an enrichment table, checking the stored precision of its p-values."""
+    df = pd.read_csv(enrichment_file, sep='\t', dtype={PVAL_COL: str})
+    check_pvalue_precision(df[PVAL_COL], enrichment_file)
+    df[PVAL_COL] = pd.to_numeric(df[PVAL_COL])
+    return df
+
+
 def get_significant_terms(enrichment_file, p_value_threshold=0.01):
     """Reads an enrichment file and returns a set of significant terms."""
     if os.path.exists(enrichment_file):
-        df = pd.read_csv(enrichment_file, sep='\t')
+        df = read_enrichment(enrichment_file)
         significant_terms = set(df[df['Adjusted P-value'] < p_value_threshold]['Term'])
         return significant_terms
     else:
@@ -23,7 +72,7 @@ def get_significant_terms(enrichment_file, p_value_threshold=0.01):
 def get_genes_with_terms(enrichment_file, terms, p_value_filter=None):
     """Reads an enrichment file and returns a dictionary of genes (uppercase) and their terms."""
     if os.path.exists(enrichment_file):
-        df = pd.read_csv(enrichment_file, sep='\t')
+        df = read_enrichment(enrichment_file)
         if p_value_filter is not None:
             df = df[df['Adjusted P-value'] < p_value_filter]
         genes_with_terms = {}

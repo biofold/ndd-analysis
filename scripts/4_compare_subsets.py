@@ -122,10 +122,10 @@ def compare_annotations(
                 for j in range(n):
                     if i < j:
                         val = or_matrix[i,j]
-                        row.append(f"{val:.3f}" if not np.isnan(val) else "NA")
+                        row.append(repr(float(val)) if not np.isnan(val) else "NA")
                     elif i > j:
                         val = p_matrix[i,j]
-                        row.append(f"{val:.3e}" if not np.isnan(val) else "NA")
+                        row.append(repr(float(val)) if not np.isnan(val) else "NA")
                     else:
                         row.append("NA")
                 f.write("\t".join(row) + "\n")
