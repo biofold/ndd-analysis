@@ -181,7 +181,10 @@ def main():
                 n_nd += 1
                 continue
             if go_id in slim_ids and aspect in ASPECT:
-                direct[aspect][go_id].add(symbol)
+                # Upper-case (Enrichr convention, as in the GO_*/KEGG/Reactome
+                # libraries): the GAF uses HGNC case (C9orf72), and gseapy
+                # matches case-sensitively. See normalize_gmt_case.py.
+                direct[aspect][go_id].add(symbol.upper())
 
     report = []
     os.makedirs(args.outdir, exist_ok=True)

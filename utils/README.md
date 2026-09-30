@@ -11,7 +11,7 @@ Every script here is invoked by `run_ndd_analysis.py` (or, for
   against gnomAD's own release.
 
 - **`enrichment/`** — build or post-process Enrichr/gseapy enrichment
-  results: `build_goslim_gmt.py` builds the GO Slim libraries from GO's human annotations with the GO Consortium's map2slim (see data/README.md);
+  results: `build_goslim_gmt.py` builds the GO Slim libraries from GO's human annotations with the GO Consortium's map2slim (see data/README.md); `normalize_gmt_case.py` upper-cases the gene symbols of a .gmt library (Enrichr convention, used by every library in libs/; `--check` exits 1 if any library is not upper case). Per-gene data files keyed to the HGNC spine (e.g. data/mondo.txt) keep HGNC case;
   `enrichr_odds_ratio_ci.py` appends a 95% CI to the Odds Ratio column
   (wired into `scripts/1_enrichr_all.py` — every enrichment table the
   pipeline produces gets `OR_CI_low`/`OR_CI_high` automatically).

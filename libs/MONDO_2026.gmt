@@ -287,7 +287,7 @@ Hypophosphatasia (MONDO:0018570)		ALPL
 Infantile hypophosphatasia (MONDO:1010169)		ALPL	
 Infantile-onset ascending hereditary spastic paralysis (MONDO:0011797)		ALS2	
 Juvenile primary lateral sclerosis (MONDO:0011663)		ALS2	
-Amyotrophic lateral sclerosis (MONDO:0004976)		ALS2	ANG	C9orf72	DCTN1	FIG4	FUS	NEFH	OPTN	PRPH	SETX	SIGMAR1	SOD1	SPG11	TARDBP	UBQLN2	VAPB	VCP	
+Amyotrophic lateral sclerosis (MONDO:0004976)		ALS2	ANG	C9ORF72	DCTN1	FIG4	FUS	NEFH	OPTN	PRPH	SETX	SIGMAR1	SOD1	SPG11	TARDBP	UBQLN2	VAPB	VCP	
 Juvenile amyotrophic lateral sclerosis (MONDO:0017593)		ALS2	SIGMAR1	SPG11	
 Amyotrophic lateral sclerosis type 2, juvenile (MONDO:0008780)		ALS2	
 Frontonasal dysplasia - severe microphthalmia - severe facial clefting syndrome (MONDO:0013271)		ALX1	
@@ -496,7 +496,7 @@ Hearing loss, autosomal dominant 84 (MONDO:0030724)		ATP11A
 X-linked congenital hemolytic anemia (MONDO:0060455)		ATP11C	
 Kufor-Rakeb syndrome (MONDO:0011706)		ATP13A2	
 Autosomal recessive spastic paraplegia type 78 (MONDO:0014975)		ATP13A2	
-Neurodegeneration with brain iron accumulation (MONDO:0018307)		ATP13A2	C19orf12	COASY	CP	CRAT	DCAF17	FA2H	FTL	PANK2	PLA2G6	REPS1	TBCE	WDR45	
+Neurodegeneration with brain iron accumulation (MONDO:0018307)		ATP13A2	C19ORF12	COASY	CP	CRAT	DCAF17	FA2H	FTL	PANK2	PLA2G6	REPS1	TBCE	WDR45	
 Hypomagnesemia, seizures, and intellectual disability 2 (MONDO:0020788)		ATP1A1	
 Charcot-Marie-tooth disease, axonal, type 2DD (MONDO:0054833)		ATP1A1	
 Familial hemiplegic migraine (MONDO:0000700)		ATP1A2	CACNA1A	SCN1A	
@@ -717,13 +717,13 @@ Microcephaly 30, primary, autosomal recessive (MONDO:0859342)		BUB1
 Mosaic variegated aneuploidy syndrome (MONDO:0000141)		BUB1B	CEP57	TRIP13	
 Mosaic variegated aneuploidy syndrome 1 (MONDO:0009759)		BUB1B	
 Achalasia-progeroid syndrome (MONDO:0700300)		BUD13	
-Cardiomyopathy, dilated, 1QQ (MONDO:0979239)		C10orf71	
-Temtamy syndrome (MONDO:0009033)		C12orf57	
-Premature ovarian failure 18 (MONDO:0030939)		C14orf39	
-Spermatogenic failure 52 (MONDO:0030938)		C14orf39	
-Glycosylphosphatidylinositol biosynthesis defect 25 (MONDO:0859271)		C18orf32	
-Neurodegeneration with brain iron accumulation 4 (MONDO:0013674)		C19orf12	
-Hereditary spastic paraplegia 43 (MONDO:0014024)		C19orf12	
+Cardiomyopathy, dilated, 1QQ (MONDO:0979239)		C10ORF71	
+Temtamy syndrome (MONDO:0009033)		C12ORF57	
+Premature ovarian failure 18 (MONDO:0030939)		C14ORF39	
+Spermatogenic failure 52 (MONDO:0030938)		C14ORF39	
+Glycosylphosphatidylinositol biosynthesis defect 25 (MONDO:0859271)		C18ORF32	
+Neurodegeneration with brain iron accumulation 4 (MONDO:0013674)		C19ORF12	
+Hereditary spastic paraplegia 43 (MONDO:0014024)		C19ORF12	
 Hemolytic uremic syndrome, atypical, 8, with rhizomelic short stature (MONDO:0957495)		C1GALT1C1	
 C1Q deficiency (MONDO:0013343)		C1QA	C1QB	C1QC	
 C1Q deficiency 1 (MONDO:0958182)		C1QA	
@@ -738,14 +738,14 @@ Complement component C1s deficiency (MONDO:0013419)		C1S
 Age related macular degeneration 14 (MONDO:0014207)		C2	CFB	
 Complement component 2 deficiency (MONDO:0009006)		C2	
 Orofaciodigital syndrome type 14 (MONDO:0014413)		C2CD3	
-Combined oxidative phosphorylation deficiency 53 (MONDO:0030378)		C2orf69	
+Combined oxidative phosphorylation deficiency 53 (MONDO:0030378)		C2ORF69	
 Atypical hemolytic-uremic syndrome (MONDO:0016244)		C3	CD46	CFB	CFH	CFHR1	CFHR3	CFHR4	CFI	THBD	
 Hemolytic-uremic syndrome (MONDO:0001549)		C3	CD46	CFB	CFH	CFHR1	CFHR3	CFHR4	CFI	THBD	
 Atypical hemolytic-uremic syndrome with C3 anomaly (MONDO:0013043)		C3	
 Mesangiocapillary glomerulonephritis, type II (MONDO:0019736)		C3	CD46	CFB	CFH	CFHR1	CFHR5	CFI	DGKE	
 Age related macular degeneration 9 (MONDO:0012659)		C3	
 Complement component 3 deficiency (MONDO:0013417)		C3	
-Hypotrichosis 15 (MONDO:0859341)		C3orf52	
+Hypotrichosis 15 (MONDO:0859341)		C3ORF52	
 Complement component 4a deficiency (MONDO:0013721)		C4A	
 Complement component 5 deficiency (MONDO:0012295)		C5	
 Complement component 6 deficiency (MONDO:0012908)		C6	
@@ -753,7 +753,7 @@ Complement component 7 deficiency (MONDO:0012412)		C7
 Type I complement component 8 deficiency (MONDO:0013422)		C8A	
 Type II complement component 8 deficiency (MONDO:0013421)		C8B	
 Complement component 9 deficiency (MONDO:0013445)		C9	
-Frontotemporal dementia and/or amyotrophic lateral sclerosis 1 (MONDO:0007105)		C9orf72	
+Frontotemporal dementia and/or amyotrophic lateral sclerosis 1 (MONDO:0007105)		C9ORF72	
 Isolated hyperchlorhidrosis (MONDO:0007747)		CA12	
 Hyperammonemic encephalopathy due to carbonic anhydrase VA deficiency (MONDO:0014332)		CA5A	
 Cerebellar ataxia, intellectual disability, and dysequilibrium syndrome 3 (MONDO:0013188)		CA8	
