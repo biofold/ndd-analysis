@@ -73,6 +73,50 @@ Data bucket, arn:aws:s3:::gnomad-public-us-east-1) and compares:
   check.
   `python utils/data_extraction/verify_gnomad_pli_source.py --version 4.1 --input data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --dbnsfp-pli-table data/gene_gnomad_pli.tsv`
 
+## gnomAD v4.1 constraint (served alongside v2.1.1, not instead of it)
+
+`ndd_master_table.tsv`'s `gnomAD_pLI` remains the **v2.1.1** value; every published
+analysis used it. gnomAD v4.1 constraint is extracted separately and served by the
+iNDDx API as an additional `gnomad_v4` block per gene.
+
+- Input: `data/raw/gnomad.v4.1.constraint_metrics.tsv.gz` (211,523 transcript rows).
+- `python utils/data_extraction/extract_gnomad_v4_constraint.py --input data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --output data/gene_gnomad_v4_constraint.tsv`
+- Output `data/gene_gnomad_v4_constraint.tsv`: one row per **Ensembl gene ID** (17,481
+  genes): `Ensembl_ID, Gene, mane_transcript, gnomad_v4_pli, gnomad_v4_loeuf,
+  gnomad_v4_oe_lof, gnomad_v4_constraint_flags` (`;`-joined; empty = no flags).
+  LOEUF (`lof.oe_ci.upper`) is gnomAD's recommended metric; lower = more constrained.
+
+**Deduplication.** Restricted to `mane_select == True`. gnomAD lists every MANE
+transcript twice: under its Ensembl name (`ENST`, `gene_id` = `ENSG...`) and under its
+RefSeq name (`NM_`, `gene_id` = NCBI Entrez number). Only the `ENSG` rows can be joined
+to iNDDx, so those are emitted -- but the script first **asserts** the RefSeq and
+Ensembl twins agree, per symbol, on pLI, LOEUF and o/e (and on missingness), and
+refuses to write output otherwise. (`verify_gnomad_pli_source.py` records that this
+agreement was checked once; here it is enforced on every run.)
+
+**Join on Ensembl ID, not symbol.** Matching iNDDx to this file by upper-cased symbol
+covers 17,214 of 19,354 genes; by Ensembl gene ID, 17,461 -- 252 genes are recovered.
+
+**Coverage: the v4.1 release contains chr1-22 only.** Neither X nor Y is present, so
+1,893 iNDDx genes have no v4.1 row, 884 of them on X (840) or Y (44). The loss is
+class-biased, because NDD genes are enriched on X: 205 of 2,639 high-confidence genes
+are uncovered, 176 of them on X (*MECP2, CDKL5, FMR1, ARX, DCX, ATRX, KDM5C, DMD,
+SLC6A8* ...). Absence means "gnomAD v4.1 did not score this gene", **not**
+"unconstrained". The v2.1.1 pLI does cover X. Any analysis ranking by v4 constraint
+silently drops these genes unless it says so.
+
+| iNDDx class | with a v4.1 row |
+|---|---|
+| high-confidence | 2,434 / 2,639 (92.2%) |
+| candidate | 6,464 / 6,856 (94.3%) |
+| no reported evidence | 8,563 / 9,859 (86.9%) |
+
+`constraint_flags` (e.g. `outlier_mis`, `no_exp_lof`) marks estimates gnomAD considers
+unreliable; 595 genes carry one. Values are emitted, not dropped -- filter on them.
+
+Version differences are large, which is why this is not a swap: *TP53* pLI is 0.532 in
+v2.1.1 and 0.998 in v4.1; *AADAT* 0.146 and 0.463.
+
 ## HPO and ClinGen haploinsufficiency (moved off dbNSFP to primary sources)
 
 ndd_master_table.tsv's HPO_id/HPO_name and ClinGen_Haploinsufficiency_Score
