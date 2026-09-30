@@ -19,7 +19,11 @@ IDs and symbols, some of which HGNC has since moved to other genes. Rows are
 therefore assigned in two passes, one gnomAD row per gene and never two:
 
   1. Base: HGNC Ensembl gene ID == gnomAD gene_id; otherwise an unambiguous gnomAD
-     symbol (98 v2.1.1 symbols name more than one gene_id and are never used).
+     symbol (98 v2.1.1 symbols name more than one gene_id and are never used);
+     otherwise a PREVIOUS HGNC symbol of the gene, only when that previous symbol
+     belongs to exactly one approved gene, is not the approved symbol of another
+     gene, names exactly one gnomAD row, and that row is still unassigned
+     (warning: assigned_by_previous_symbol).
   2. Transcript check. The current owner of each row's transcript is read from the
      gnomAD v4.1 constraint file (every GENCODE v39 transcript with its gene_id),
      which is pinned in data/raw, so no network lookup happens at run time.
@@ -50,7 +54,11 @@ prev_symbol / alias_symbol fields (written to --renames, warned on stderr):
   possible_missed_match       gene has no row, but one of its previous symbols names a
                               gnomAD row left unassigned
 
-Output columns: Gene, Ensembl_ID, gnomad_v2_match (ensembl|symbol|transcript),
+All exceptions and renaming checks are also written to ONE log (--log) with a
+severity column (warning = value moved, dropped, or assigned by a weaker rule;
+info = value unchanged, provenance only), so every run leaves a complete audit trail.
+
+Output columns: Gene, Ensembl_ID, gnomad_v2_match (ensembl|symbol|previous_symbol|transcript),
 gnomad_v2_transcript, gnomad_v2_warning, gnomAD_pLI, gnomAD_LOEUF,
 gnomAD_LOEUF_decile, gnomAD_oe_lof, gnomAD_constraint_flag.
 
@@ -61,7 +69,9 @@ Usage:
       --gnomad data/gene_gnomad_v2_constraint.tsv \\
       --transcript-owners data/raw/gnomad.v4.1.constraint_metrics.tsv.gz \\
       --output data/gene_gnomad_v2_mapped.tsv \\
-      --exceptions data/gnomad_v2_mapping_exceptions.tsv
+      --exceptions data/gnomad_v2_mapping_exceptions.tsv \\
+      --renames data/gnomad_v2_renamed_genes.tsv \\
+      --log data/gnomad_v2_mapping_log.tsv
 """
 
 import argparse
@@ -82,6 +92,7 @@ def main():
     ap.add_argument("--output", required=True)
     ap.add_argument("--exceptions", required=True, help="TSV listing every exception")
     ap.add_argument("--renames", required=True, help="TSV listing genes renamed since gnomAD v2.1.1")
+    ap.add_argument("--log", required=True, help="single TSV log of every exception (with severity)")
     args = ap.parse_args()
 
     genes = pd.read_csv(args.genes, sep="\t", dtype=str)
@@ -128,6 +139,29 @@ def main():
             g.at[i, "gnomad_v2_match"] = "symbol"
             claimed.add(gid)
 
+    # previous HGNC symbol (renamed genes whose Ensembl ID also changed)
+    split = lambda v: set() if pd.isna(v) else {x.strip().upper() for x in str(v).split("|")}
+    prev = {k: split(v) for k, v in hgnc.set_index("key")["prev_symbol"].items()}
+    alias = {k: split(v) for k, v in hgnc.set_index("key")["alias_symbol"].items()}
+    approved = set(hgnc["key"])
+    prev_owners = {}
+    for k, ps in prev.items():
+        for p_ in ps:
+            prev_owners.setdefault(p_, set()).add(k)
+    prev_exc = []
+    for i in g.index[g["gnomad_gene_id"].isna()]:
+        k = g.at[i, "key"]
+        cands = [p_ for p_ in sorted(prev.get(k, set()))
+                 if p_ in unambiguous.index and p_ not in approved
+                 and len(prev_owners.get(p_, ())) == 1
+                 and unambiguous.at[p_, "Ensembl_ID"] not in claimed]
+        if len(cands) == 1:
+            gid = unambiguous.at[cands[0], "Ensembl_ID"]
+            g.at[i, "gnomad_gene_id"] = gid
+            g.at[i, "gnomad_v2_match"] = "previous_symbol"
+            claimed.add(gid)
+            prev_exc.append((g.at[i, "Gene"], gid))
+
     # ---- pass 2: transcript check ------------------------------------------------
     g = g.set_index("Gene", drop=False)
     ens2gene = g.dropna(subset=["Ensembl_ID"]).drop_duplicates("Ensembl_ID")\
@@ -142,6 +176,16 @@ def main():
             return
         prev = g.at[gene, "gnomad_v2_warning"]
         g.at[gene, "gnomad_v2_warning"] = code if pd.isna(prev) else f"{prev};{code}"
+
+    for gene, rid in prev_exc:
+        row = by_ens.loc[rid]
+        note(gene, f"assigned_by_previous_symbol:{row['Gene']}")
+        exc.append(dict(exception="assigned_by_previous_symbol", assigned_to=gene,
+                        previous_holder=None, gnomad_row_gene_id=rid, gnomad_row_symbol=row["Gene"],
+                        gnomad_row_transcript=row["transcript"],
+                        transcript_owner_gene_id=tx_owner.get(row["tx"]),
+                        transcript_owner=ens2gene.get(tx_owner.get(row["tx"])),
+                        pLI=row["gnomad_v2_pli"], LOEUF=row["gnomad_v2_loeuf"]))
 
     for rid, row in by_ens.iterrows():
         owner_id = tx_owner.get(row["tx"])
@@ -183,10 +227,6 @@ def main():
                             previous_holder=cur, symbol_gene=sym_gene, **base))
 
     # ---- renaming check ----------------------------------------------------------
-    split = lambda v: set() if pd.isna(v) else {x.strip().upper() for x in str(v).split("|")}
-    prev = {k: split(v) for k, v in hgnc.set_index("key")["prev_symbol"].items()}
-    alias = {k: split(v) for k, v in hgnc.set_index("key")["alias_symbol"].items()}
-    approved = set(hgnc["key"])
     ren = []
     for gene, row in g.iterrows():
         rid = row["gnomad_gene_id"]
@@ -239,10 +279,35 @@ def main():
     rn = pd.DataFrame(ren, columns=["check", "gene", "gnomad_symbol", "gnomad_row_gene_id", "match"])
     rn.to_csv(args.renames, sep="\t", index=False)
 
+    severity = {"reassigned_by_transcript": "warning", "transcript_owner_has_own_row": "warning",
+                "unresolved_retired_transcript": "warning", "assigned_by_previous_symbol": "warning",
+                "symbol_conflict_resolved_by_transcript": "info",
+                "gnomAD_symbol_now_other_gene": "warning", "possible_missed_match": "warning",
+                "symbol_differs_unverified": "warning", "alias_in_gnomAD": "info",
+                "renamed_since_gnomAD": "info"}
+    vals = by_ens[["gnomad_v2_pli", "gnomad_v2_loeuf", "transcript"]]
+    log = pd.concat([
+        ex.assign(category=ex["exception"], gene=ex["assigned_to"].fillna(ex["previous_holder"]),
+                  other_gene=ex["symbol_gene"].fillna(ex["previous_holder"]).where(
+                      ex["symbol_gene"].notna() | (ex["previous_holder"] != ex["assigned_to"])),
+                  source="assignment"),
+        rn.rename(columns={"gnomad_symbol": "gnomad_row_symbol"}).assign(
+            category=rn["check"], other_gene=pd.NA, source="renaming")
+          .join(vals, on="gnomad_row_gene_id")
+          .rename(columns={"gnomad_v2_pli": "pLI", "gnomad_v2_loeuf": "LOEUF",
+                           "transcript": "gnomad_row_transcript"}),
+    ], ignore_index=True)
+    log["severity"] = log["category"].map(severity).fillna("warning")
+    log = log[["severity", "category", "source", "gene", "other_gene", "gnomad_row_symbol",
+               "gnomad_row_gene_id", "gnomad_row_transcript", "transcript_owner", "pLI", "LOEUF"]]
+    log = log.sort_values(["severity", "category", "gene"], ascending=[False, True, True])
+    log.to_csv(args.log, sep="\t", index=False)
+
     m = out["gnomad_v2_match"]
     print(f"genes: {len(out):,}")
     print(f"matched to a gnomAD v2.1.1 row: {m.notna().sum():,} (ensembl {int((m == 'ensembl').sum()):,}, "
-          f"symbol {int((m == 'symbol').sum()):,}, transcript {int((m == 'transcript').sum()):,})")
+          f"symbol {int((m == 'symbol').sum()):,}, previous_symbol {int((m == 'previous_symbol').sum()):,}, "
+          f"transcript {int((m == 'transcript').sum()):,})")
     print(f"with pLI and LOEUF: {int(out['gnomAD_pLI'].notna().sum()):,}")
     for code, grp in ex.groupby("exception"):
         genes_hit = sorted(set(grp["assigned_to"].dropna()) | set(grp["previous_holder"].dropna())
@@ -254,7 +319,9 @@ def main():
         warnings.warn(f"possible gene renaming '{code}': {len(grp)} gene(s), e.g. {ex_list}"
                       f"{' ...' if len(grp) > 8 else ''} (full list: {args.renames})", stacklevel=1)
     print(f"written: {args.output}\nexceptions ({len(ex)}): {args.exceptions}\n"
-          f"renaming checks ({len(rn)}): {args.renames}")
+          f"renaming checks ({len(rn)}): {args.renames}\n"
+          f"log ({len(log)} rows; {int((log['severity'] == 'warning').sum())} warnings, "
+          f"{int((log['severity'] == 'info').sum())} info): {args.log}")
 
 
 if __name__ == "__main__":

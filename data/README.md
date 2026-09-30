@@ -113,25 +113,27 @@ is not produced by `run_ndd_analysis.py` must be redrawn separately.
 
 ### Per-gene mapping used by the pipeline
 
-- HGNC complete set pinned as `data/raw/hgnc_complete_set_20260930.txt.gz`.
+- HGNC complete set pinned as `data/raw/hgnc_complete_set_20260930.txt.gz` (Ensembl IDs,
+  previous symbols, aliases).
 - Transcript owners: `data/raw/gnomad.v4.1.constraint_metrics.tsv.gz` (every GENCODE v39
   transcript with its current gene_id; used only as a transcript -> gene table, no v4 values).
-- `python utils/data_extraction/map_gnomad_v2_to_genes.py --genes data/gene_all_score.txt --hgnc data/raw/hgnc_complete_set_20260930.txt.gz --gnomad data/gene_gnomad_v2_constraint.tsv --transcript-owners data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --output data/gene_gnomad_v2_mapped.tsv --exceptions data/gnomad_v2_mapping_exceptions.tsv --renames data/gnomad_v2_renamed_genes.tsv`
-- Rule: base assignment by HGNC Ensembl ID, then unambiguous symbol; then a transcript
-  check (a constraint value belongs to the gene owning gnomAD's transcript). One gnomAD
-  row per gene, never two. 18,356 ensembl + 233 symbol + 17 transcript = 18,606 genes
-  matched, 18,318 with pLI and LOEUF (6,767 of 6,856 candidates).
-- `gnomad_v2_mapping_exceptions.tsv` (30 rows, also warned at run time):
-  17 reassigned_by_transcript (e.g. TAF9 from AK6, H4C6 <- HIST1H4G row, PAGR1),
-  8 transcript_owner_has_own_row (kept, flagged), 3 unresolved_retired_transcript
-  (NBPF8/NBPF20, PRAMEF26/PRAMEF25, MAGEA9B/MAGEA9: value dropped), 2
-  symbol_conflict_resolved_by_transcript (ADORA3 row kept by TMIGD3, OR4M2 row by OR4M2B).
-- `gnomad_v2_renamed_genes.tsv` (renaming check, warned at run time): 1,174
-  renamed_since_gnomAD, 21 alias_in_gnomAD, 42 symbol_differs_unverified,
-  11 gnomAD_symbol_now_other_gene, 38 possible_missed_match (gene without a row whose
-  previous HGNC symbol names an unassigned gnomAD row, e.g. H4C1 <- HIST1H4A; not
-  auto-assigned).
-- Each gene carries its codes in the `gnomad_v2_warning` column.
+- `python utils/data_extraction/map_gnomad_v2_to_genes.py --genes data/gene_all_score.txt --hgnc data/raw/hgnc_complete_set_20260930.txt.gz --gnomad data/gene_gnomad_v2_constraint.tsv --transcript-owners data/raw/gnomad.v4.1.constraint_metrics.tsv.gz --output data/gene_gnomad_v2_mapped.tsv --exceptions data/gnomad_v2_mapping_exceptions.tsv --renames data/gnomad_v2_renamed_genes.tsv --log data/gnomad_v2_mapping_log.tsv`
+- Rule (one gnomAD row per gene, never two):
+  1. HGNC Ensembl ID == gnomAD gene_id (18,356 genes);
+  2. else unambiguous gnomAD symbol (233);
+  3. else a previous HGNC symbol that belongs to exactly one approved gene, is not
+     another gene's approved symbol, and names one unassigned gnomAD row (51);
+  4. transcript check: a row moves to the current owner of its transcript when that
+     owner has no row of its own (6); a retired transcript contested by
+     the gnomAD-symbol gene is dropped.
+  18,356 genes carry pLI and LOEUF.
+- Audit trail, regenerated on every run and warned on stderr:
+  `data/gnomad_v2_mapping_log.tsv` (1,361 rows; 121 warnings,
+  1,240 info), published by step 6 as Table S26 and summarised in
+  its log (Part E.5). Detail files: `gnomad_v2_mapping_exceptions.tsv` (assignment
+  exceptions) and `gnomad_v2_renamed_genes.tsv` (renaming checks). Each gene also carries
+  its codes in the `gnomad_v2_warning` column of `gene_gnomad_v2_mapped.tsv`.
+- Categories: alias_in_gnomAD 21; assigned_by_previous_symbol 51; gnomAD_symbol_now_other_gene 11; reassigned_by_transcript 6; renamed_since_gnomAD 1,217; symbol_conflict_resolved_by_transcript 2; symbol_differs_unverified 39; transcript_owner_has_own_row 11; unresolved_retired_transcript 3.
 
 ## HPO and ClinGen haploinsufficiency (moved off dbNSFP to primary sources)
 

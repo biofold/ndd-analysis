@@ -55,7 +55,7 @@ renamed_since_gnomAD	AIRIM	C1ORF109	ENSG00000116922	ensembl
 renamed_since_gnomAD	AJM1	C9ORF172	ENSG00000232434	ensembl
 renamed_since_gnomAD	AKAIN1	C18ORF42	ENSG00000231824	ensembl
 renamed_since_gnomAD	AKAP19	C2ORF88	ENSG00000187699	ensembl
-possible_missed_match	AKR1C8	AKR1CL1	ENSG00000196326	
+renamed_since_gnomAD	AKR1C8	AKR1CL1	ENSG00000196326	previous_symbol
 renamed_since_gnomAD	ALKAL1	FAM150A	ENSG00000196711	ensembl
 renamed_since_gnomAD	ALKAL2	FAM150B	ENSG00000189292	ensembl
 renamed_since_gnomAD	ALPG	ALPPL2	ENSG00000163286	ensembl
@@ -147,11 +147,11 @@ renamed_since_gnomAD	CARMIL3	LRRC16B	ENSG00000186648	ensembl
 renamed_since_gnomAD	CARNMT1	C9ORF41	ENSG00000156017	ensembl
 renamed_since_gnomAD	CARS1	CARS	ENSG00000110619	ensembl
 renamed_since_gnomAD	CASTOR1	GATSL3	ENSG00000239282	ensembl
-possible_missed_match	CASTOR2	GATSL2	ENSG00000198750	
+renamed_since_gnomAD	CASTOR2	GATSL2	ENSG00000198750	previous_symbol
 renamed_since_gnomAD	CATIP	C2ORF62	ENSG00000158428	ensembl
 renamed_since_gnomAD	CATSPERE	C1ORF101	ENSG00000179397	ensembl
 renamed_since_gnomAD	CATSPERH	TMEM262	ENSG00000187066	ensembl
-possible_missed_match	CATSPERQ	TMEM249	ENSG00000214597	
+renamed_since_gnomAD	CATSPERQ	TMEM249	ENSG00000214597	previous_symbol
 renamed_since_gnomAD	CATSPERT	ALS2CR11	ENSG00000155754	ensembl
 renamed_since_gnomAD	CATSPERZ	TEX40	ENSG00000219435	ensembl
 renamed_since_gnomAD	CAVIN1	PTRF	ENSG00000177469	ensembl
@@ -162,7 +162,7 @@ renamed_since_gnomAD	CBARP	C19ORF26	ENSG00000099625	ensembl
 renamed_since_gnomAD	CBLIF	GIF	ENSG00000134812	ensembl
 renamed_since_gnomAD	CBLL2	ZNF645	ENSG00000175809	ensembl
 renamed_since_gnomAD	CBY2	SPERT	ENSG00000174015	ensembl
-possible_missed_match	CCDC163	CCDC163P	ENSG00000236624	
+renamed_since_gnomAD	CCDC163	CCDC163P	ENSG00000236624	previous_symbol
 renamed_since_gnomAD	CCDC184	C12ORF68	ENSG00000177875	ensembl
 renamed_since_gnomAD	CCDC185	C1ORF65	ENSG00000178395	ensembl
 renamed_since_gnomAD	CCDC186	C10ORF118	ENSG00000165813	ensembl
@@ -179,7 +179,7 @@ renamed_since_gnomAD	CCN4	WISP1	ENSG00000104415	ensembl
 renamed_since_gnomAD	CCN5	WISP2	ENSG00000064205	ensembl
 renamed_since_gnomAD	CCN6	WISP3	ENSG00000112761	ensembl
 renamed_since_gnomAD	CCNP	CNTD2	ENSG00000105219	ensembl
-possible_missed_match	CCNQ	FAM58A	ENSG00000147382	
+renamed_since_gnomAD	CCNQ	FAM58A	ENSG00000147382	previous_symbol
 renamed_since_gnomAD	CDC50A	TMEM30A	ENSG00000112697	ensembl
 renamed_since_gnomAD	CDC50B	TMEM30B	ENSG00000182107	ensembl
 renamed_since_gnomAD	CDIN1	C15ORF41	ENSG00000186073	ensembl
@@ -399,7 +399,7 @@ renamed_since_gnomAD	ENTREP3	FAM189B	ENSG00000160767	ensembl
 renamed_since_gnomAD	EOLA1	CXORF40A	ENSG00000197620	ensembl
 renamed_since_gnomAD	EOLA2	CXORF40B	ENSG00000197021	ensembl
 renamed_since_gnomAD	EPCIP	C21ORF62	ENSG00000205929	ensembl
-possible_missed_match	EPOP	C17ORF96	ENSG00000179294	
+renamed_since_gnomAD	EPOP	C17ORF96	ENSG00000179294	previous_symbol
 renamed_since_gnomAD	EPRS1	EPRS	ENSG00000136628	ensembl
 renamed_since_gnomAD	ERBIN	ERBB2IP	ENSG00000112851	ensembl
 renamed_since_gnomAD	ERFE	FAM132B	ENSG00000178752	ensembl
@@ -499,74 +499,76 @@ renamed_since_gnomAD	H1-5	HIST1H1B	ENSG00000184357	ensembl
 renamed_since_gnomAD	H1-6	HIST1H1T	ENSG00000187475	ensembl
 renamed_since_gnomAD	H1-7	H1FNT	ENSG00000187166	ensembl
 renamed_since_gnomAD	H1-8	H1FOO	ENSG00000178804	ensembl
-possible_missed_match	H2AB1	H2AFB1	ENSG00000198082	
+renamed_since_gnomAD	H2AB1	H2AFB1	ENSG00000198082	previous_symbol
 renamed_since_gnomAD	H2AC11	HIST1H2AG	ENSG00000196787	ensembl
-renamed_since_gnomAD	H2AC12	HIST1H2AH	ENSG00000184825	transcript
+renamed_since_gnomAD	H2AC12	HIST1H2AH	ENSG00000184825	previous_symbol
 renamed_since_gnomAD	H2AC13	HIST1H2AI	ENSG00000196747	ensembl
-renamed_since_gnomAD	H2AC14	HIST1H2AJ	ENSG00000182611	transcript
-possible_missed_match	H2AC15	HIST1H2AK	ENSG00000184348	
-possible_missed_match	H2AC16	HIST1H2AL	ENSG00000198374	
-renamed_since_gnomAD	H2AC17	HIST1H2AM	ENSG00000233224	transcript
+renamed_since_gnomAD	H2AC14	HIST1H2AJ	ENSG00000182611	previous_symbol
+renamed_since_gnomAD	H2AC15	HIST1H2AK	ENSG00000184348	previous_symbol
+renamed_since_gnomAD	H2AC16	HIST1H2AL	ENSG00000198374	previous_symbol
+renamed_since_gnomAD	H2AC17	HIST1H2AM	ENSG00000233224	previous_symbol
 renamed_since_gnomAD	H2AC1	HIST1H2AA	ENSG00000164508	ensembl
 renamed_since_gnomAD	H2AC20	HIST2H2AC	ENSG00000184260	ensembl
 renamed_since_gnomAD	H2AC21	HIST2H2AB	ENSG00000184270	ensembl
 renamed_since_gnomAD	H2AC25	HIST3H2A	ENSG00000181218	ensembl
-possible_missed_match	H2AC4	HIST1H2AB	ENSG00000137259	
+renamed_since_gnomAD	H2AC4	HIST1H2AB	ENSG00000137259	previous_symbol
 renamed_since_gnomAD	H2AC6	HIST1H2AC	ENSG00000180573	ensembl
 renamed_since_gnomAD	H2AC7	HIST1H2AD	ENSG00000196866	ensembl
-renamed_since_gnomAD	H2AC8	HIST1H2AE	ENSG00000168274	transcript
+renamed_since_gnomAD	H2AC8	HIST1H2AE	ENSG00000168274	previous_symbol
 renamed_since_gnomAD	H2AJ	H2AFJ	ENSG00000246705	ensembl
 renamed_since_gnomAD	H2AP	CXORF27	ENSG00000187516	ensembl
 renamed_since_gnomAD	H2AX	H2AFX	ENSG00000188486	ensembl
 renamed_since_gnomAD	H2AZ1	H2AFZ	ENSG00000164032	ensembl
 renamed_since_gnomAD	H2AZ2	H2AFV	ENSG00000105968	ensembl
-renamed_since_gnomAD	H2BC10	HIST1H2BI	ENSG00000168242	transcript
+renamed_since_gnomAD	H2BC10	HIST1H2BI	ENSG00000168242	previous_symbol
 renamed_since_gnomAD	H2BC11	HIST1H2BJ	ENSG00000124635	ensembl
 renamed_since_gnomAD	H2BC12	HIST1H2BK	ENSG00000197903	ensembl
 renamed_since_gnomAD	H2BC13	HIST1H2BL	ENSG00000185130	ensembl
-possible_missed_match	H2BC14	HIST1H2BM	ENSG00000196374	
+renamed_since_gnomAD	H2BC14	HIST1H2BM	ENSG00000196374	previous_symbol
 renamed_since_gnomAD	H2BC15	HIST1H2BN	ENSG00000233822	ensembl
-possible_missed_match	H2BC17	HIST1H2BO	ENSG00000196331	
+renamed_since_gnomAD	H2BC17	HIST1H2BO	ENSG00000196331	previous_symbol
 renamed_since_gnomAD	H2BC18	HIST2H2BF	ENSG00000203814	ensembl
 renamed_since_gnomAD	H2BC1	HIST1H2BA	ENSG00000146047	ensembl
 renamed_since_gnomAD	H2BC21	HIST2H2BE	ENSG00000184678	ensembl
 renamed_since_gnomAD	H2BC26	HIST3H2BB	ENSG00000196890	ensembl
-possible_missed_match	H2BC3	HIST1H2BB	ENSG00000196226	
+renamed_since_gnomAD	H2BC3	HIST1H2BB	ENSG00000196226	previous_symbol
 renamed_since_gnomAD	H2BC4	HIST1H2BC	ENSG00000180596	ensembl
 renamed_since_gnomAD	H2BC5	HIST1H2BD	ENSG00000158373	ensembl
-symbol_differs_unverified	H2BC7	HIST1H2BE	ENSG00000197697	transcript
-possible_missed_match	H2BC8	HIST1H2BG	ENSG00000187990	
-possible_missed_match	H2BC9	HIST1H2BH	ENSG00000197459	
+renamed_since_gnomAD	H2BC6	HIST1H2BE	ENSG00000197697	previous_symbol
+renamed_since_gnomAD	H2BC7	HIST1H2BF	ENSG00000197846	previous_symbol
+renamed_since_gnomAD	H2BC8	HIST1H2BG	ENSG00000187990	previous_symbol
+renamed_since_gnomAD	H2BC9	HIST1H2BH	ENSG00000197459	previous_symbol
 renamed_since_gnomAD	H2BW1	H2BFWT	ENSG00000123569	ensembl
 renamed_since_gnomAD	H2BW2	H2BFM	ENSG00000101812	ensembl
 renamed_since_gnomAD	H3-3A	H3F3A	ENSG00000163041	ensembl
 renamed_since_gnomAD	H3-3B	H3F3B	ENSG00000132475	ensembl
 renamed_since_gnomAD	H3-4	HIST3H3	ENSG00000168148	ensembl
 renamed_since_gnomAD	H3-5	H3F3C	ENSG00000188375	ensembl
-renamed_since_gnomAD	H3-7	HIST2H3PS2	ENSG00000203818	transcript
-renamed_since_gnomAD	H3C10	HIST1H3H	ENSG00000203813	transcript
-possible_missed_match	H3C11	HIST1H3I	ENSG00000182572	
+renamed_since_gnomAD	H3-7	HIST2H3PS2	ENSG00000203818	previous_symbol
+renamed_since_gnomAD	H3C10	HIST1H3H	ENSG00000203813	previous_symbol
+renamed_since_gnomAD	H3C11	HIST1H3I	ENSG00000182572	previous_symbol
 renamed_since_gnomAD	H3C12	HIST1H3J	ENSG00000197153	ensembl
 renamed_since_gnomAD	H3C13	HIST2H3D	ENSG00000183598	ensembl
-possible_missed_match	H3C1	HIST1H3A	ENSG00000198366	
-possible_missed_match	H3C2	HIST1H3B	ENSG00000124693	
-possible_missed_match	H3C3	HIST1H3C	ENSG00000196532	
+renamed_since_gnomAD	H3C1	HIST1H3A	ENSG00000198366	previous_symbol
+renamed_since_gnomAD	H3C2	HIST1H3B	ENSG00000124693	previous_symbol
+renamed_since_gnomAD	H3C3	HIST1H3C	ENSG00000196532	previous_symbol
 renamed_since_gnomAD	H3C4	HIST1H3D	ENSG00000197409	ensembl
-possible_missed_match	H3C6	HIST1H3E	ENSG00000196966	
-possible_missed_match	H3C7	HIST1H3F	ENSG00000256316	
-possible_missed_match	H3C8	HIST1H3G	ENSG00000256018	
+renamed_since_gnomAD	H3C6	HIST1H3E	ENSG00000196966	previous_symbol
+renamed_since_gnomAD	H3C7	HIST1H3F	ENSG00000256316	previous_symbol
+renamed_since_gnomAD	H3C8	HIST1H3G	ENSG00000256018	previous_symbol
 renamed_since_gnomAD	H4C11	HIST1H4J	ENSG00000197238	ensembl
-possible_missed_match	H4C12	HIST1H4K	ENSG00000197914	
-possible_missed_match	H4C13	HIST1H4L	ENSG00000198558	
+renamed_since_gnomAD	H4C12	HIST1H4K	ENSG00000197914	previous_symbol
+renamed_since_gnomAD	H4C13	HIST1H4L	ENSG00000198558	previous_symbol
 renamed_since_gnomAD	H4C16	HIST4H4	ENSG00000197837	ensembl
-possible_missed_match	H4C1	HIST1H4A	ENSG00000196176	
-symbol_differs_unverified	H4C2	HIST1H4F	ENSG00000198327	transcript
+renamed_since_gnomAD	H4C1	HIST1H4A	ENSG00000196176	previous_symbol
+renamed_since_gnomAD	H4C2	HIST1H4B	ENSG00000124529	previous_symbol
 renamed_since_gnomAD	H4C3	HIST1H4C	ENSG00000197061	ensembl
-possible_missed_match	H4C4	HIST1H4D	ENSG00000188987	
-possible_missed_match	H4C5	HIST1H4E	ENSG00000198518	
-symbol_differs_unverified	H4C6	HIST1H4G	ENSG00000124578	transcript
+renamed_since_gnomAD	H4C4	HIST1H4D	ENSG00000188987	previous_symbol
+renamed_since_gnomAD	H4C5	HIST1H4E	ENSG00000198518	previous_symbol
+renamed_since_gnomAD	H4C6	HIST1H4F	ENSG00000198327	previous_symbol
+renamed_since_gnomAD	H4C7	HIST1H4G	ENSG00000124578	previous_symbol
 renamed_since_gnomAD	H4C8	HIST1H4H	ENSG00000158406	ensembl
-possible_missed_match	H4C9	HIST1H4I	ENSG00000198339	
+renamed_since_gnomAD	H4C9	HIST1H4I	ENSG00000198339	previous_symbol
 renamed_since_gnomAD	HACD1	PTPLA	ENSG00000165996	ensembl
 renamed_since_gnomAD	HACD2	PTPLB	ENSG00000206527	ensembl
 renamed_since_gnomAD	HACD3	PTPLAD1	ENSG00000074696	ensembl
@@ -578,7 +580,7 @@ renamed_since_gnomAD	HASPIN	GSG2	ENSG00000177602	ensembl
 alias_in_gnomAD	HDGFL2	HDGFRP2	ENSG00000167674	ensembl
 alias_in_gnomAD	HDGFL3	HDGFRP3	ENSG00000166503	ensembl
 renamed_since_gnomAD	HDHD5	CECR5	ENSG00000069998	ensembl
-possible_missed_match	HEATR9	C17ORF66	ENSG00000172653	
+renamed_since_gnomAD	HEATR9	C17ORF66	ENSG00000172653	previous_symbol
 renamed_since_gnomAD	HEMK2	N6AMT1	ENSG00000156239	ensembl
 renamed_since_gnomAD	HEXD	HEXDC	ENSG00000169660	ensembl
 renamed_since_gnomAD	HGH1	FAM203A	ENSG00000235173	ensembl
@@ -779,7 +781,7 @@ renamed_since_gnomAD	NALF1	FAM155A	ENSG00000204442	ensembl
 renamed_since_gnomAD	NALF2	FAM155B	ENSG00000130054	ensembl
 renamed_since_gnomAD	NAPRT	NAPRT1	ENSG00000147813	ensembl
 renamed_since_gnomAD	NARS1	NARS	ENSG00000134440	ensembl
-possible_missed_match	NATD1	C17ORF103	ENSG00000154035	
+renamed_since_gnomAD	NATD1	C17ORF103	ENSG00000154035	previous_symbol
 renamed_since_gnomAD	NAXD	CARKD	ENSG00000213995	ensembl
 renamed_since_gnomAD	NAXE	APOA1BP	ENSG00000163382	ensembl
 renamed_since_gnomAD	NCBP3	C17ORF85	ENSG00000074356	ensembl
@@ -807,7 +809,7 @@ renamed_since_gnomAD	NOCT	CCRN4L	ENSG00000151014	ensembl
 renamed_since_gnomAD	NOL4L	C20ORF112	ENSG00000197183	ensembl
 renamed_since_gnomAD	NOP53	GLTSCR2	ENSG00000105373	ensembl
 renamed_since_gnomAD	NOPCHAP1	C12ORF45	ENSG00000151131	ensembl
-possible_missed_match	NOTCH2NLA	NOTCH2NL	ENSG00000213240	
+renamed_since_gnomAD	NOTCH2NLA	NOTCH2NL	ENSG00000213240	previous_symbol
 symbol_differs_unverified	NPIPB13	RP11-347C12.1	ENSG00000198064	ensembl
 symbol_differs_unverified	NPIPB2	RP11-166B2.1	ENSG00000234719	ensembl
 renamed_since_gnomAD	NRDC	NRD1	ENSG00000078618	ensembl
@@ -831,7 +833,7 @@ renamed_since_gnomAD	OGA	MGEA5	ENSG00000198408	ensembl
 renamed_since_gnomAD	OPRPN	PROL1	ENSG00000171199	ensembl
 gnomAD_symbol_now_other_gene	OR4M2B	OR4M2	ENSG00000182974	ensembl
 renamed_since_gnomAD	OR51H1	OR51H1P	ENSG00000176904	ensembl
-possible_missed_match	OR8U3	OR5R1	ENSG00000174942	
+renamed_since_gnomAD	OR8U3	OR5R1	ENSG00000174942	previous_symbol
 renamed_since_gnomAD	OTULIN	FAM105B	ENSG00000154124	ensembl
 renamed_since_gnomAD	OTULINL	FAM105A	ENSG00000145569	ensembl
 renamed_since_gnomAD	P3H1	LEPRE1	ENSG00000117385	ensembl
@@ -910,7 +912,7 @@ renamed_since_gnomAD	POU2AF2	C11ORF53	ENSG00000150750	ensembl
 renamed_since_gnomAD	POU2AF3	COLCA2	ENSG00000214290	ensembl
 renamed_since_gnomAD	PPDPFL	C8ORF22	ENSG00000168333	ensembl
 renamed_since_gnomAD	PPP4R3A	SMEK1	ENSG00000100796	ensembl
-possible_missed_match	PPP4R3B	SMEK2	ENSG00000138041	
+renamed_since_gnomAD	PPP4R3B	SMEK2	ENSG00000138041	previous_symbol
 symbol_differs_unverified	PRAMEF27	WI2-3308P17.2	ENSG00000239810	transcript
 renamed_since_gnomAD	PRELID3A	SLMO1	ENSG00000141391	ensembl
 renamed_since_gnomAD	PRELID3B	SLMO2	ENSG00000101166	ensembl
@@ -925,7 +927,7 @@ renamed_since_gnomAD	PRR27	C4ORF40	ENSG00000187533	ensembl
 renamed_since_gnomAD	PRR29	C17ORF72	ENSG00000224383	ensembl
 renamed_since_gnomAD	PRR30	C2ORF53	ENSG00000186143	ensembl
 renamed_since_gnomAD	PRR32	CXORF64	ENSG00000183631	ensembl
-possible_missed_match	PRR33	C11ORF89	ENSG00000184682	
+renamed_since_gnomAD	PRR33	C11ORF89	ENSG00000184682	previous_symbol
 renamed_since_gnomAD	PRR35	C16ORF11	ENSG00000161992	ensembl
 symbol_differs_unverified	PRR36	CTD-3193O13.9	ENSG00000183248	ensembl
 renamed_since_gnomAD	PRUNE1	PRUNE	ENSG00000143363	ensembl
@@ -956,7 +958,7 @@ renamed_since_gnomAD	RAMAC	FAM103A1	ENSG00000169612	ensembl
 renamed_since_gnomAD	RARS1	RARS	ENSG00000113643	ensembl
 renamed_since_gnomAD	RBIS	C8ORF59	ENSG00000176731	ensembl
 renamed_since_gnomAD	RBSN	ZFYVE20	ENSG00000131381	ensembl
-possible_missed_match	RCC1L	WBSCR16	ENSG00000174374	
+renamed_since_gnomAD	RCC1L	WBSCR16	ENSG00000174374	previous_symbol
 renamed_since_gnomAD	REC114	C15ORF60	ENSG00000183324	ensembl
 renamed_since_gnomAD	REDIC1	C12ORF40	ENSG00000180116	ensembl
 symbol_differs_unverified	REELD1	RP11-6L6.2	ENSG00000250673	ensembl
@@ -969,7 +971,7 @@ renamed_since_gnomAD	REX1BD	C19ORF60	ENSG00000006015	ensembl
 symbol_differs_unverified	REXO5	AC004381.6	ENSG00000005189	ensembl
 renamed_since_gnomAD	RFLNA	FAM101A	ENSG00000178882	ensembl
 renamed_since_gnomAD	RFLNB	FAM101B	ENSG00000183688	ensembl
-renamed_since_gnomAD	RHEX	C1ORF186	ENSG00000196533	transcript
+renamed_since_gnomAD	RHEX	C1ORF186	ENSG00000196533	previous_symbol
 renamed_since_gnomAD	RIC1	KIAA1432	ENSG00000107036	ensembl
 renamed_since_gnomAD	RIDA	HRSP12	ENSG00000132541	ensembl
 renamed_since_gnomAD	RIGI	DDX58	ENSG00000107201	ensembl
@@ -985,7 +987,7 @@ renamed_since_gnomAD	RMP64	C3ORF17	ENSG00000163608	ensembl
 renamed_since_gnomAD	RNF212B	C14ORF164	ENSG00000215277	ensembl
 symbol_differs_unverified	RNF225	AC012313.1	ENSG00000269855	ensembl
 renamed_since_gnomAD	RO60	TROVE2	ENSG00000116747	ensembl
-possible_missed_match	RPSA2	RPSAP58	ENSG00000205246	
+renamed_since_gnomAD	RPSA2	RPSAP58	ENSG00000205246	previous_symbol
 alias_in_gnomAD	RSKR	SGK494	ENSG00000167524	ensembl
 renamed_since_gnomAD	RSPH14	RTDR1	ENSG00000100218	ensembl
 renamed_since_gnomAD	RSRP1	C1ORF63	ENSG00000117616	ensembl
@@ -1109,7 +1111,7 @@ renamed_since_gnomAD	SPATA45	C1ORF227	ENSG00000185523	ensembl
 renamed_since_gnomAD	SPATA46	C1ORF111	ENSG00000171722	ensembl
 renamed_since_gnomAD	SPEM2	C17ORF74	ENSG00000184560	ensembl
 renamed_since_gnomAD	SPINDOC	C11ORF84	ENSG00000168005	ensembl
-possible_missed_match	SPMAP1	C17ORF98	ENSG00000214556	
+renamed_since_gnomAD	SPMAP1	C17ORF98	ENSG00000214556	previous_symbol
 renamed_since_gnomAD	SPMAP2L	THEGL	ENSG00000249693	ensembl
 renamed_since_gnomAD	SPMAP2	THEG	ENSG00000105549	ensembl
 renamed_since_gnomAD	SPMIP10	C5ORF48	ENSG00000196900	ensembl
@@ -1280,7 +1282,7 @@ renamed_since_gnomAD	ZNG1A	CBWD1	ENSG00000172785	ensembl
 renamed_since_gnomAD	ZNG1B	CBWD2	ENSG00000136682	ensembl
 renamed_since_gnomAD	ZNG1C	CBWD3	ENSG00000196873	ensembl
 renamed_since_gnomAD	ZNG1E	CBWD5	ENSG00000147996	ensembl
-possible_missed_match	ZNG1F	CBWD6	ENSG00000204790	
+renamed_since_gnomAD	ZNG1F	CBWD6	ENSG00000204790	previous_symbol
 renamed_since_gnomAD	ZNRD2	SSSCA1	ENSG00000173465	ensembl
 renamed_since_gnomAD	ZPR1	ZNF259	ENSG00000109917	ensembl
 renamed_since_gnomAD	ZSWIM9	C19ORF68	ENSG00000185453	ensembl

@@ -853,6 +853,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- Table S9: MOE threshold operating characteristics against ClinVar P/LP\n")
         f.write("- Table S10: MOE vs ClinVar P/LP adjusted for gnomAD pLI (logistic regression)\n")
         f.write("- Table S10b: MOE vs ClinVar P/LP adjusted for gnomAD LOEUF (logistic regression)\n")
+        f.write("- Table S26: gnomAD v2.1.1 gene-mapping log (exceptions and renamings, with severity)\n")
         f.write("- Table S11: ROC/PR AUC of MOE vs annotation-density baselines\n")
         f.write("- Table S12: MOE vs ClinVar P/LP adjusted for GO and PubMed counts\n")
         f.write("- Table S13: Spearman correlation of MOE with GO and PubMed annotation density\n")
@@ -1222,6 +1223,19 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     else:
         sys.stderr.write(f"Warning: {component_script} not found; skipping component analyses\n")
 
+    # Part E.5: gnomAD v2.1.1 gene-mapping audit (every exception, each run)
+    print("\n--- Part E.5: gnomAD v2.1.1 mapping exceptions ---", file=sys.stderr)
+    gn_log = Path("data") / "gnomad_v2_mapping_log.tsv"
+    if gn_log.exists():
+        import pandas as _pd
+        _log = _pd.read_csv(gn_log, sep="\t")
+        for (_sev, _cat), _grp in _log.groupby(["severity", "category"]):
+            _genes = ", ".join(_grp["gene"].dropna().astype(str).head(6))
+            print(f"  [{_sev}] {_cat}: {len(_grp)} gene(s), e.g. {_genes}", file=sys.stderr)
+    else:
+        sys.stderr.write("Warning: data/gnomad_v2_mapping_log.tsv not found; run "
+                         "utils/data_extraction/map_gnomad_v2_to_genes.py\n")
+
     # Part E.4: Table 1 rule check and per-source unique contribution (R1.1, R2.3)
     print("\n--- Part E.4: Classification rule check and source contribution (R1.1/R2.3) ---", file=sys.stderr)
     source_script = get_absolute_path("utils/table_generation/source_contribution.py")
@@ -1254,6 +1268,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "source_rule_check.tsv", "table_s23.tsv"),
         (validation_dir / "source_rule_counts.tsv", "table_s24.tsv"),
         (validation_dir / "source_decision_tree.tsv", "table_s25.tsv"),
+        (Path("data") / "gnomad_v2_mapping_log.tsv", "table_s26.tsv"),
     ]
     for src_file, new_name in validation_tables:
         if copy_file(src_file, tables_dir, new_name):
