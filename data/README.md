@@ -103,10 +103,23 @@ no-evidence genes. dbNSFP also carries no LOEUF. The same symbol-matching gap af
 dbNSFP's RVIS and GDI (99.6% / 99.8% missing among renamed genes vs 12.1% / 5.9% otherwise),
 which have no reachable primary source to repair from.
 
-**Status of the published analyses.** The pLI analyses (Figure 5, the KS matrix, the
-MOE-tier comparisons, `utils/moe_validation/`) were computed on `gene_gnomad_pli.tsv`
-(dbNSFP) and still read it. Switch them to `gene_gnomad_v2_constraint.tsv` deliberately
-when recalculating; nothing has been switched yet.
+**Status of the published analyses.** The MOE validation (step 6: Tables S10/S10b, S17/S18,
+the pLI and LOEUF violin/KS figures, the component figure) now reads gnomAD v2.1.1 from
+gnomAD's own file via `data/gene_gnomad_v2_mapped.tsv` (below). The dbNSFP value is kept in
+the master table as `gnomAD_pLI_dbNSFP` for comparison only
+(`results/docs/validation/pli_source_comparison.tsv`). Any pLI figure in the manuscript that
+is not produced by `run_ndd_analysis.py` must be redrawn separately.
+
+### Per-gene mapping used by the pipeline
+
+- HGNC complete set pinned as `data/raw/hgnc_complete_set_20260930.txt.gz` (Ensembl gene IDs
+  for the 19,354 background genes).
+- `python utils/data_extraction/map_gnomad_v2_to_genes.py --genes data/gene_all_score.txt --hgnc data/raw/hgnc_complete_set_20260930.txt.gz --gnomad data/gene_gnomad_v2_constraint.tsv --output data/gene_gnomad_v2_mapped.tsv`
+- Join rule (same as iNDDx `load_mongo.resolve_gnomad`): HGNC Ensembl ID first
+  (18,361 genes), then an unambiguous gnomAD symbol (233); 760 genes unmatched.
+  18,306 genes carry pLI and LOEUF (6,762 of 6,856 candidates).
+- Output columns: `Gene, Ensembl_ID, gnomad_v2_match, gnomAD_pLI, gnomAD_LOEUF,
+  gnomAD_LOEUF_decile, gnomAD_oe_lof, gnomAD_constraint_flag`.
 
 The v4.1 raw file, `verify_gnomad_pli_source.py` and
 `gnomad_pli_v41_vs_v211_comparison.tsv` are kept only as the record of the R1.3 provenance

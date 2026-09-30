@@ -852,6 +852,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- Table S8: Candidate set cancer compara summary\n")
         f.write("- Table S9: MOE threshold operating characteristics against ClinVar P/LP\n")
         f.write("- Table S10: MOE vs ClinVar P/LP adjusted for gnomAD pLI (logistic regression)\n")
+        f.write("- Table S10b: MOE vs ClinVar P/LP adjusted for gnomAD LOEUF (logistic regression)\n")
         f.write("- Table S11: ROC/PR AUC of MOE vs annotation-density baselines\n")
         f.write("- Table S12: MOE vs ClinVar P/LP adjusted for GO and PubMed counts\n")
         f.write("- Table S13: Spearman correlation of MOE with GO and PubMed annotation density\n")
@@ -1126,8 +1127,9 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     master_table = main_dir / "ndd_master_table.tsv"
     pli_input = main_dir / "moe_pli_input.tsv"
     clinvar_input = main_dir / "moe_clinvar_input.tsv"
+    loeuf_input = main_dir / "moe_loeuf_input.tsv"
 
-    for required in (master_table, pli_input, clinvar_input):
+    for required in (master_table, pli_input, clinvar_input, loeuf_input):
         if not required.exists():
             sys.stderr.write(f"Warning: {required} was not produced; skipping MOE validation\n")
             return
@@ -1141,12 +1143,15 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     ], step_name="MOE vs ClinVar P/LP validation", env_name=conda_env)
 
     # Part C: adjustment for gnomAD constraint (R1.3)
-    print("\n--- Part C: gnomAD pLI adjusted model (R1.3) ---", file=sys.stderr)
-    run_command_conda([
-        "python", str(pli_validation),
-        str(master_table),
-        "--output-dir", str(validation_dir)
-    ], step_name="MOE vs gnomAD pLI validation", env_name=conda_env)
+    # gnomAD v2.1.1 constraint from gnomAD's own release (pLI and LOEUF).
+    print("\n--- Part C: gnomAD pLI / LOEUF adjusted models (R1.3) ---", file=sys.stderr)
+    for metric in ("pLI", "LOEUF"):
+        run_command_conda([
+            "python", str(pli_validation),
+            str(master_table),
+            "--metric", metric,
+            "--output-dir", str(validation_dir)
+        ], step_name=f"MOE vs gnomAD {metric} validation", env_name=conda_env)
 
     # Part D: annotation-density baselines (R2.9)
     print("\n--- Part D: Annotation-bias baselines (R2.9) ---", file=sys.stderr)
@@ -1171,6 +1176,8 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     tier_analyses = [
         (violin_script, pli_input, "moe_pli_violin", "pLI violin by MOE tier", []),
         (ks_test_script, pli_input, "moe_pli_ks", "pLI KS matrix by MOE tier", []),
+        (violin_script, loeuf_input, "moe_loeuf_violin", "LOEUF violin by MOE tier", []),
+        (ks_test_script, loeuf_input, "moe_loeuf_ks", "LOEUF KS matrix by MOE tier", []),
         (bar_script, clinvar_input, "moe_clinvar_bar", "ClinVar proportion by MOE tier", []),
         (fisher_test_script, clinvar_input, "moe_clinvar_fisher",
          "ClinVar Fisher matrix by MOE tier", ["--alternative", "greater"]),
@@ -1231,6 +1238,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     validation_tables = [
         (validation_dir / "moe_clinvar_operating_characteristics.tsv", "table_s9.tsv"),
         (validation_dir / "moe_pli_logistic_regression.tsv", "table_s10.tsv"),
+        (validation_dir / "moe_loeuf_logistic_regression.tsv", "table_s10b.tsv"),
         (validation_dir / "moe_annotation_bias_baseline_auc.tsv", "table_s11.tsv"),
         (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
         (validation_dir / "moe_annotation_density_correlations.tsv", "table_s13.tsv"),

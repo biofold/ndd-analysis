@@ -38,9 +38,12 @@ scripts. This is intentional -- scoring the curated genes against
 enrichment derived from the curated genes themselves would be circular.
 
 The independent validation labels are joined in from data/:
-  - gnomAD_pLI (gene_gnomad_pli.tsv) -- population constraint, derived
-    from allele frequencies alone, so independent of literature
-    curation and of the GO/pathway annotation MOE is built from.
+  - gnomAD_pLI, gnomAD_LOEUF, gnomAD_LOEUF_decile (gene_gnomad_v2_mapped.tsv)
+    -- gnomAD v2.1.1 population constraint read from gnomAD's own release and
+    joined on Ensembl ID (utils/data_extraction/map_gnomad_v2_to_genes.py).
+    Derived from allele frequencies alone, so independent of literature
+    curation and of the GO/pathway annotation MOE is built from. The earlier
+    dbNSFP 5.2 pLI (symbol-joined) is kept as gnomAD_pLI_dbNSFP for reference.
   - ClinVar P/LP counts (clinvar_plp_gene_counts.tsv) -- clinical
     variant curation, independent of pathway enrichment.
   - GO annotation counts and PubMed counts (gene_go_annotation_counts.tsv,
@@ -55,6 +58,7 @@ Two narrow tables are written alongside the master table, restricted to
 genes with a defined MOE score, in the 1-based column layout the generic
 plotters expect (category/predictor in column 2, value in column 3):
   moe_pli_input.tsv      Gene, MOE_score, gnomAD_pLI      (violin, ks-test)
+  moe_loeuf_input.tsv    Gene, MOE_score, gnomAD_LOEUF    (violin, ks-test)
   moe_clinvar_input.tsv  Gene, MOE_score, ClinVar_PLP     (bar, fisher-test, roc-pr)
 
 Usage:
@@ -199,11 +203,19 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
         master["MONDO_terms"] = pd.NA
 
     # --- independent validation labels ---
-    pli = read_table(os.path.join(data_dir, "gene_gnomad_pli.tsv"))
-    if pli is not None:
-        master = merge_on_symbol(master, pli, ["gnomAD_pLI"])
+    constraint = read_table(os.path.join(data_dir, "gene_gnomad_v2_mapped.tsv"))
+    constraint_cols = ["gnomAD_pLI", "gnomAD_LOEUF", "gnomAD_LOEUF_decile"]
+    if constraint is not None:
+        master = merge_on_symbol(master, constraint, constraint_cols)
     else:
-        master["gnomAD_pLI"] = pd.NA
+        sys.stderr.write("Warning: data/gene_gnomad_v2_mapped.tsv not found; "
+                         "gnomAD constraint columns left empty\n")
+        for c in constraint_cols:
+            master[c] = pd.NA
+    dbnsfp = read_table(os.path.join(data_dir, "gene_gnomad_pli.tsv"))
+    if dbnsfp is not None:
+        dbnsfp = dbnsfp.rename(columns={"gnomAD_pLI": "gnomAD_pLI_dbNSFP"})
+        master = merge_on_symbol(master, dbnsfp, ["gnomAD_pLI_dbNSFP"])
 
     clinvar = read_table(os.path.join(data_dir, "clinvar_plp_gene_counts.tsv"))
     if clinvar is not None:
@@ -277,6 +289,13 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
     pli_path = os.path.join(output_dir, "moe_pli_input.tsv")
     pli_tab.to_csv(pli_path, sep="\t", index=False)
     print(f"pLI validation input written: {pli_path}  ({len(pli_tab):,} genes)")
+
+    loeuf_tab = scored[["Gene", "MOE_score", "gnomAD_LOEUF"]].copy()
+    loeuf_tab["gnomAD_LOEUF"] = pd.to_numeric(loeuf_tab["gnomAD_LOEUF"], errors="coerce")
+    loeuf_tab = loeuf_tab.dropna(subset=["gnomAD_LOEUF"])
+    loeuf_path = os.path.join(output_dir, "moe_loeuf_input.tsv")
+    loeuf_tab.to_csv(loeuf_path, sep="\t", index=False)
+    print(f"LOEUF validation input written: {loeuf_path}  ({len(loeuf_tab):,} genes)")
 
     clinvar_tab = scored[["Gene", "MOE_score"]].copy()
     clinvar_tab["ClinVar_PLP"] = (

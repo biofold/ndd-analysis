@@ -245,9 +245,9 @@ def plot_figure(red, variants_df, out_png):
     for _, r in red.iterrows():
         i, j = labels.index(r["component_1"]), labels.index(r["component_2"])
         M[i, j] = M[j, i] = r["phi"]
-    fig = plt.figure(figsize=(7.2, 2.7))
-    gl = fig.add_gridspec(1, 1, left=0.11, right=0.315, bottom=0.22, top=0.86)
-    gs = fig.add_gridspec(1, 3, wspace=0.1, left=0.46, right=0.99, bottom=0.22, top=0.86)
+    fig = plt.figure(figsize=(7.2, 2.9))
+    gl = fig.add_gridspec(1, 1, left=0.10, right=0.275, bottom=0.22, top=0.86)
+    gs = fig.add_gridspec(1, 4, wspace=0.12, left=0.415, right=0.99, bottom=0.22, top=0.86)
     ax = fig.add_subplot(gl[0])
     Mplot = np.where(np.eye(len(labels)) == 1, np.nan, M)
     im = ax.imshow(Mplot, cmap="Blues", vmin=0, vmax=1)
@@ -267,8 +267,8 @@ def plot_figure(red, variants_df, out_png):
             + ["MOE6 (MOE + HPO)"]
     ylab = ["MOE (all five)"] + [f"without {COMPONENT_LABEL[c]}" for c in COMPONENTS] + ["MOE + HPO"]
     y = np.arange(len(order))[::-1]
-    outcomes = ["ClinVar P/LP", "gnomAD pLI >= 0.9", "ClinGen HI = 3"]
-    titles = ["ClinVar P/LP", "gnomAD pLI \u2265 0.9", "ClinGen HI score 3"]
+    outcomes = ["ClinVar P/LP", "gnomAD pLI >= 0.9", "gnomAD LOEUF decile 1", "ClinGen HI = 3"]
+    titles = ["ClinVar P/LP", "pLI \u2265 0.9", "LOEUF top decile", "ClinGen HI = 3"]
     focal, grey, hpo_c = "#1f5f8b", "#8a8a8a", "#c0504d"
     first = None
     for k, (oname, title) in enumerate(zip(outcomes, titles)):
@@ -320,6 +320,8 @@ def main():
 
     y_clin = (pd.to_numeric(cand["n_pathogenic_likely_pathogenic"], errors="coerce").fillna(0) >= 1).astype(int).values
     pli = pd.to_numeric(cand["gnomAD_pLI"], errors="coerce")
+    # gnomAD's own LOEUF decile (0 = the 10% most constrained genes)
+    loeuf_dec = pd.to_numeric(cand["gnomAD_LOEUF_decile"], errors="coerce")
     hi = pd.to_numeric(cand["ClinGen_HI_score"], errors="coerce")
 
     # ---- 1. redundancy ----------------------------------------------------
@@ -360,6 +362,7 @@ def main():
     outcomes = {
         "ClinVar P/LP": (np.ones(len(cand), bool), y_clin),
         "gnomAD pLI >= 0.9": (pli.notna().values, (pli >= 0.9).astype(int).values),
+        "gnomAD LOEUF decile 1": (loeuf_dec.notna().values, (loeuf_dec == 0).astype(int).values),
         # genes not curated by ClinGen are counted as "not HI 3"
         "ClinGen HI = 3": (np.ones(len(cand), bool), (hi == 3).astype(int).values),
     }
@@ -393,7 +396,7 @@ def main():
 
     # ---- 4. threshold choice ---------------------------------------------
     trows = []
-    for oname in ["ClinVar P/LP", "gnomAD pLI >= 0.9"]:
+    for oname in ["ClinVar P/LP", "gnomAD pLI >= 0.9", "gnomAD LOEUF decile 1"]:
         mask, y = outcomes[oname]
         s, ym = cand["MOE_score"].values[mask], y[mask]
         for cut in range(1, 6):
