@@ -19,7 +19,14 @@ gene_all_score.txt. Matched terms are listed per library in the order of the
 high-confidence enrichment table (ascending adjusted p-value).
 
 Columns: Gene, Class, MOE_score, MOE_GOBP, MOE_GOCC, MOE_GOMF, MOE_KEGG,
-MOE_Reactome, MOE_matched_terms ("Library:term;term|Library:term").
+MOE_Reactome, MOE_matched_terms ("Library:term;term|Library:term"), then the
+support of each point: MOE_<lib>_best_adjP = the lowest high-confidence adjusted
+p-value among the terms that give the gene that library's point (empty when no
+point; full precision), MOE_n_borderline = the number of points whose best
+supporting term has BORDERLINE_ADJP <= adjusted p < 0.01, and
+MOE_borderline_adjP = that lower bound, so the file documents its own threshold.
+A borderline point rests only on terms close to the cutoff and can change with a
+library update (e.g. SRI's GO BP point: one term at 0.009994).
 
 Usage:
   python3 utils/data_extraction/export_gene_moe.py --ndd-path . \
@@ -35,7 +42,8 @@ LIBS = [("GO_Biological_Process_2026", "MOE_GOBP"),
         ("GO_Molecular_Function_2026", "MOE_GOMF"),
         ("KEGG_2021_Human", "MOE_KEGG"),
         ("Reactome_Pathways_2024", "MOE_Reactome")]
-THRESHOLD = 0.01
+THRESHOLD = 0.01          # significance: high-confidence adjusted p < 0.01 (strict)
+BORDERLINE_ADJP = 0.005   # a point is "borderline" when its best supporting term has adjP >= this
 
 
 def read_gmt(path):
@@ -48,10 +56,16 @@ def read_gmt(path):
 
 
 def significant_terms(path):
-    """HC-significant terms in table order (gseapy writes ascending adjusted p)."""
+    """HC-significant (term, adjusted p) in table order (gseapy writes ascending adjusted p).
+    float() parses the stored text exactly (no rounding)."""
     with open(path) as fh:
         r = csv.DictReader(fh, delimiter="\t")
-        return [row["Term"] for row in r if float(row["Adjusted P-value"]) < THRESHOLD]
+        out = []
+        for row in r:
+            p = float(row["Adjusted P-value"])
+            if p < THRESHOLD:
+                out.append((row["Term"], p))
+        return out
 
 
 def main():
@@ -71,11 +85,14 @@ def main():
             genes.append((f[0], f[1]))
 
     matched = {g.upper(): {} for g, _ in genes}   # key -> {lib: [terms]}
+    best = {}                                     # (key, lib) -> lowest supporting adjusted p
     for lib, _ in LIBS:
         gmt = read_gmt(os.path.join(a.ndd_path, "libs", f"{lib}.gmt"))
-        for term in significant_terms(os.path.join(res, f"gene_set2_{lib}.tsv")):
+        for term, p in significant_terms(os.path.join(res, f"gene_set2_{lib}.tsv")):
             for key in gmt[term] & matched.keys():
                 matched[key].setdefault(lib, []).append(term)
+                if p < best.get((key, lib), 2.0):
+                    best[(key, lib)] = p
 
     # Candidates must reproduce scripts/2_supercandidate.py exactly.
     with open(os.path.join(res, "supercandidate.tsv")) as fh:
@@ -89,13 +106,20 @@ def main():
         sys.exit(f"Error: supercandidate.tsv has {len(sc)} genes, gene_all_score.txt {n_cand} candidates")
 
     with open(a.output, "w", newline="") as fo:
-        fo.write("\t".join(["Gene", "Class", "MOE_score"] + [c for _, c in LIBS] + ["MOE_matched_terms"]) + "\n")
+        fo.write("\t".join(["Gene", "Class", "MOE_score"] + [c for _, c in LIBS] + ["MOE_matched_terms"]
+                            + [f"{c}_best_adjP" for _, c in LIBS] + ["MOE_n_borderline", "MOE_borderline_adjP"]) + "\n")
+        n_border = 0
         for g, cls in genes:
-            m = matched[g.upper()]
+            k = g.upper()
+            m = matched[k]
             flags = [str(int(lib in m)) for lib, _ in LIBS]
             terms = "|".join(f"{lib}:" + ";".join(m[lib]) for lib, _ in LIBS if lib in m)
-            fo.write("\t".join([g, cls, str(len(m))] + flags + [terms]) + "\n")
-    print(f"{a.output}: {len(genes)} genes; candidates identical to supercandidate.tsv ({len(sc)})", file=sys.stderr)
+            bp = [repr(best[(k, lib)]) if lib in m else "" for lib, _ in LIBS]
+            nb = sum(1 for lib, _ in LIBS if lib in m and best[(k, lib)] >= BORDERLINE_ADJP)
+            n_border += nb > 0
+            fo.write("\t".join([g, cls, str(len(m))] + flags + [terms] + bp + [str(nb), repr(BORDERLINE_ADJP)]) + "\n")
+    print(f"{a.output}: {len(genes)} genes; candidates identical to supercandidate.tsv ({len(sc)}); "
+          f"{n_border} genes with >= 1 borderline point (best supporting adjP >= {BORDERLINE_ADJP})", file=sys.stderr)
 
 
 if __name__ == "__main__":

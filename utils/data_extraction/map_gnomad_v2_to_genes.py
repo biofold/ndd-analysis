@@ -60,7 +60,9 @@ info = value unchanged, provenance only), so every run leaves a complete audit t
 
 Output columns: Gene, Ensembl_ID, gnomad_v2_match (ensembl|symbol|previous_symbol|transcript),
 gnomad_v2_transcript, gnomad_v2_warning, gnomAD_pLI, gnomAD_LOEUF,
-gnomAD_LOEUF_decile, gnomAD_oe_lof, gnomAD_constraint_flag.
+gnomAD_LOEUF_decile, gnomAD_oe_lof, gnomAD_constraint_flag, gnomad_v2_warning_severity
+(warning|info, the most severe of the gene's notes), gnomad_v2_note_text (plain language,
+from NOTE_TEXT; served by iNDDx).
 
 Usage:
   python3 utils/data_extraction/map_gnomad_v2_to_genes.py \\
@@ -79,6 +81,65 @@ import sys
 import warnings
 
 import pandas as pd
+
+# Severity of each exception category (warning = value moved, dropped, or assigned by a
+# weaker rule; info = documented but not in doubt). Unknown categories count as warning.
+SEVERITY = {"reassigned_by_transcript": "warning", "transcript_owner_has_own_row": "warning",
+            "unresolved_retired_transcript": "warning", "assigned_by_previous_symbol": "warning",
+            "symbol_conflict_resolved_by_transcript": "info",
+            "gnomAD_symbol_now_other_gene": "warning", "possible_missed_match": "warning",
+            "symbol_differs_unverified": "warning", "alias_in_gnomAD": "info",
+            "renamed_since_gnomAD": "info"}
+
+
+# Plain-language text for each category (shown by iNDDx); {x} is the detail after
+# the colon, with the "from_", "vs_" and "row_kept_by_" prefixes removed. The
+# definitions are the ones in the module docstring above.
+NOTE_TEXT = {
+    "renamed_since_gnomAD": "gnomAD v2.1.1 lists this gene under its previous HGNC symbol {x}.",
+    "alias_in_gnomAD": "gnomAD v2.1.1 lists this gene under {x}, an HGNC alias of the gene.",
+    "symbol_differs_unverified": "gnomAD v2.1.1 lists this gene as {x}, which is neither a previous "
+                                 "symbol nor an alias in HGNC.",
+    "gnomAD_symbol_now_other_gene": "gnomAD v2.1.1 lists this gene as {x}, today the approved symbol "
+                                    "of a different gene.",
+    "assigned_by_previous_symbol": "No gnomAD row matches this gene's Ensembl ID or symbol; the value is "
+                                   "taken from the row of its previous HGNC symbol {x}.",
+    "reassigned_by_transcript": "The value comes from the gnomAD row first assigned to {x}: that row's "
+                                "transcript now belongs to this gene.",
+    "lost_row_to_transcript_owner": "No gnomAD value: the row first assigned to this gene was computed on "
+                                    "a transcript that now belongs to {x}, which receives it.",
+    "transcript_owner_has_own_row": "The transcript of this gene's gnomAD row now belongs to {x}, which "
+                                    "has its own row; the value is kept for this gene.",
+    "unresolved_retired_transcript": "No gnomAD value: the row was computed on a retired transcript and "
+                                     "is also claimed by {x}, so its owner cannot be decided.",
+    "symbol_conflict_resolved_by_transcript": "No gnomAD value: the row labelled with this gene's symbol "
+                                              "was computed on a transcript of {x}, which keeps it.",
+    "possible_missed_match": "No gnomAD value, although a previous symbol names an unassigned gnomAD "
+                             "row ({x}).",
+}
+
+
+def note_text(note):
+    """Plain-language rendering of a gene's ';'-joined notes (unknown categories: the code)."""
+    if not isinstance(note, str) or not note:
+        return pd.NA
+    out = []
+    for c in (c for c in note.split(";") if c):
+        cat, _, x = c.partition(":")
+        for pre in ("from_", "vs_", "row_kept_by_"):
+            if x.startswith(pre):
+                x = x[len(pre):]
+        t = NOTE_TEXT.get(cat)
+        out.append(t.format(x=x) if t and x else (t.replace(" {x}", "").replace("({x})", "") if t else c))
+    return " ".join(out)
+
+
+def note_severity(note):
+    """Most severe category among a gene's ';'-joined 'category:detail' notes."""
+    if not isinstance(note, str) or not note:
+        return pd.NA
+    cats = [c.split(":", 1)[0] for c in note.split(";") if c]
+    return "warning" if any(SEVERITY.get(c, "warning") == "warning" for c in cats) else "info"
 
 
 def main():
@@ -269,6 +330,9 @@ def main():
     })[["Gene", "Ensembl_ID", "gnomad_v2_match", "gnomad_v2_transcript", "gnomad_v2_warning",
         "gnomAD_pLI", "gnomAD_LOEUF", "gnomAD_LOEUF_decile", "gnomAD_oe_lof",
         "gnomAD_constraint_flag"]]
+    # appended last so readers selecting columns by position are unaffected
+    out = out.assign(gnomad_v2_warning_severity=out["gnomad_v2_warning"].map(note_severity),
+                     gnomad_v2_note_text=out["gnomad_v2_warning"].map(note_text))
     out.to_csv(args.output, sep="\t", index=False)
 
     ex = pd.DataFrame(exc, columns=["exception", "assigned_to", "previous_holder", "symbol_gene",
@@ -279,12 +343,7 @@ def main():
     rn = pd.DataFrame(ren, columns=["check", "gene", "gnomad_symbol", "gnomad_row_gene_id", "match"])
     rn.to_csv(args.renames, sep="\t", index=False)
 
-    severity = {"reassigned_by_transcript": "warning", "transcript_owner_has_own_row": "warning",
-                "unresolved_retired_transcript": "warning", "assigned_by_previous_symbol": "warning",
-                "symbol_conflict_resolved_by_transcript": "info",
-                "gnomAD_symbol_now_other_gene": "warning", "possible_missed_match": "warning",
-                "symbol_differs_unverified": "warning", "alias_in_gnomAD": "info",
-                "renamed_since_gnomAD": "info"}
+    severity = SEVERITY
     vals = by_ens[["gnomad_v2_pli", "gnomad_v2_loeuf", "transcript"]]
     log = pd.concat([
         ex.assign(category=ex["exception"], gene=ex["assigned_to"].fillna(ex["previous_holder"]),
