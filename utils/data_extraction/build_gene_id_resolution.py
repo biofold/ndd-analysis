@@ -43,12 +43,13 @@ STATUS
 Matches at LOWER tiers that point to other entries are kept in other_matches (e.g.
 MDR1: previous symbol of ABCB1, but also an alias of TBC1D9).
 
-auto_resolve (a lookup may answer with the gene record directly) = status resolved AND
+auto_resolve (the match is unique and uncontested, so substituting `gene` is safe) =
+status resolved AND
   - match_type is a symbol or ID of tiers 1-6 (lower-tier matches cannot override an
     exact symbol or ID; they are only reported), or
   - match_type is previous_symbol AND other_matches is empty.
-Aliases never auto-resolve. Every other key is answered with its resolution record so
-the caller decides.
+Aliases never qualify. The iNDDx server serves this table as a separate resolution
+service (/api/resolve); its gene lookups match identifiers exactly and never apply it.
 
 OUTPUT (--output, gzipped TSV, one row per key)
 ------
