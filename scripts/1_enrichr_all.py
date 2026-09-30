@@ -33,11 +33,78 @@ def read_gene_list(file_path):
                 # Skip empty lines and comments
                 if not line or line.startswith('#'):
                     continue
-                genes.append(line.upper())
+                # Keep the symbol as written (HGNC case, e.g. C9orf72). Case is
+                # reconciled per library by resolve_symbols(): libraries do not
+                # agree (GO/KEGG/Reactome/SynGO write C9ORF72, GOslim/MONDO write
+                # C9orf72), so neither blanket upper- nor lower-casing is safe.
+                genes.append(line)
     except FileNotFoundError:
         sys.stderr.write(f"Warning: File not found: {file_path}\n")
         return []
     return genes
+
+
+def library_symbols(library):
+    """Return (symbols, index) for a library: the set of gene symbols exactly as
+    written in libs/<library>.gmt, and a map UPPER(symbol) -> {symbols}."""
+    library_file = os.path.join(f"{ndd_path}/libs", f"{library}.gmt")
+    symbols = set()
+    with open(library_file) as fh:
+        for line in fh:
+            symbols.update(g for g in line.rstrip("\n").split("\t")[2:] if g)
+    index = {}
+    for g in symbols:
+        index.setdefault(g.upper(), set()).add(g)
+    return symbols, index
+
+
+def resolve_symbols(genes, symbols, index):
+    """Case exception for matching gene symbols to one library.
+
+    gseapy matches symbols case-sensitively. A gene is used as written when the
+    library contains it exactly; otherwise, if the library contains exactly one
+    symbol that equals it ignoring case (e.g. C9orf72 vs C9ORF72, typically the
+    open-reading-frame genes), the library's spelling is used and the case is
+    reported. Genes absent from the library, or whose case-insensitive match is
+    ambiguous (several spellings in the library), are upper-cased: they match
+    no term either way, but gseapy (enrichr.py, _local_enrichment) upper-cases
+    the whole query and background when <90% of the query is upper case and
+    the first library terms are upper case -- which would undo the resolution
+    above (e.g. C18orf32 -> C18ORF32, absent from MONDO). Upper-casing the
+    unmatched genes keeps that heuristic from firing (checked by
+    assert_no_gseapy_recase()).
+    Returns (resolved_genes, [(input, library_symbol_or_candidates, status)]).
+    """
+    resolved, exceptions = [], []
+    for g in genes:
+        if g in symbols:
+            resolved.append(g)
+            continue
+        hits = index.get(g.upper(), set())
+        if len(hits) == 1:
+            lib_g = next(iter(hits))
+            resolved.append(lib_g)
+            exceptions.append((g, lib_g, "case_match"))
+        else:
+            resolved.append(g.upper())
+            if len(hits) > 1:
+                exceptions.append((g, ",".join(sorted(hits)), "ambiguous_case"))
+    return resolved, exceptions
+
+
+def _mostly_upper(genes):
+    """gseapy's check_uppercase(): >=90% of symbols are upper case."""
+    genes = [str(g) for g in genes]
+    return bool(genes) and sum(g.isupper() for g in genes) / len(genes) >= 0.9
+
+
+def assert_no_gseapy_recase(query, library):
+    """Fail if gseapy would silently upper-case this query (see resolve_symbols)."""
+    gmt = gp.get_library(os.path.join(f"{ndd_path}/libs", f"{library}.gmt"))
+    top = list(gmt.keys())[:min(len(gmt), 10)]
+    if all(_mostly_upper(gmt[k]) for k in top) and not _mostly_upper(query):
+        sys.exit(f"Error: {library}: gseapy would upper-case the query and undo the "
+                 f"symbol case resolution; aborting.")
 
 
 def perform_enrichment(gene_lists, background, library, output_dir, input_files):
@@ -418,15 +485,44 @@ def main():
     adjusted_p_threshold = 0.01
 
     # Process each library
+    os.makedirs(args.output_dir, exist_ok=True)
+    case_log = []   # rows: library, gene_list, input_symbol, library_symbol, status
     for library in libraries:
-        background_terms = get_background_terms(library, background_genes)
+        # Reconcile symbol case with this library (see resolve_symbols) for the
+        # gene lists AND the background: gseapy restricts every term to the
+        # background, so a case mismatch there also drops genes from terms.
+        symbols, index = library_symbols(library)
+        lib_gene_lists = []
+        for gl, f in zip(gene_lists, input_files):
+            resolved, exc = resolve_symbols(gl, symbols, index)
+            lib_gene_lists.append(resolved)
+            case_log += [(library, os.path.basename(f), *e) for e in exc]
+        lib_background, exc = resolve_symbols(background_genes, symbols, index)
+        case_log += [(library, os.path.basename(background_file), *e) for e in exc]
+        n_case = sum(1 for e in exc if e[2] == "case_match")
+        n_amb = sum(1 for e in exc if e[2] == "ambiguous_case")
+        if n_case:
+            sys.stderr.write(f"Warning: {library}: {n_case} background symbols matched only ignoring case "
+                             f"(library spelling used; see symbol_case_matches.tsv)\n")
+        if n_amb:
+            sys.stderr.write(f"Warning: {library}: {n_amb} symbols have ambiguous case matches and were left unmatched\n")
+
+        background_terms = get_background_terms(library, lib_background)
         sys.stderr.write(f"Number of terms associated with background genes in {library}: {len(background_terms)}\n")
 
-        perform_enrichment(gene_lists, background_genes, library, args.output_dir, input_files)
+        for q in lib_gene_lists:
+            if q:
+                assert_no_gseapy_recase(q, library)
+        perform_enrichment(lib_gene_lists, lib_background, library, args.output_dir, input_files)
         
         # Calculate overlap matrix if we have at least 2 gene sets
         if len(input_files) >= 2:
             calculate_overlap_matrix(input_files, library, args.output_dir, adjusted_p_threshold, background_terms)
+
+    case_log_path = os.path.join(args.output_dir, "symbol_case_matches.tsv")
+    pd.DataFrame(case_log, columns=["library", "gene_list", "input_symbol", "library_symbol", "status"]
+                 ).to_csv(case_log_path, sep="\t", index=False)
+    sys.stderr.write(f"Symbol case exceptions ({len(case_log)} rows) saved to {case_log_path}\n")
 
     # Generate summary table
     summary_table = generate_summary_table(input_files, libraries, args.output_dir, adjusted_p_threshold)
