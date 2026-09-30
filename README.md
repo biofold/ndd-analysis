@@ -2,7 +2,8 @@
 
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![Conda](https://img.shields.io/badge/conda-supported-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License: code](https://img.shields.io/badge/code-MIT-green)
+![License: data](https://img.shields.io/badge/data-CC%20BY%204.0-lightgrey)
 
 A reproducible pipeline for identifying candidate genes in neurodevelopmental disorders through multi-database enrichment analysis.
 
@@ -34,3 +35,13 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
    ```bash
    python run_ndd_analysis.py -c config.yml
    ```
+
+## License
+
+- **Code** (scripts, server, clients): MIT License, see [`LICENSE`](LICENSE).
+- **Data and documentation** (gene classification, MOE scores, derived tables, mappings,
+  documentation text): Creative Commons Attribution 4.0 International (CC BY 4.0), see
+  [`LICENSE-DATA.md`](LICENSE-DATA.md). Third-party values remain under their sources' terms.
+
+Please cite: Rivi C, Turina P, Capriotti E. *Identifying top candidate genes associated with
+neurodevelopmental disorders*. Int. J. Mol. Sci. (manuscript ijms-4575333, in revision).

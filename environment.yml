@@ -15,7 +15,7 @@ dependencies:
   - matplotlib-venn=1.1.2
   - seaborn=0.13.2
   - statsmodels=0.14.4
-  - gseapy=1.1.6
+  - gseapy=1.1.6   # v1.3.1 verified identical (all p-values, ORs, CIs; only gene order in 'Genes' differs)
   - scikit-learn        # ROC/PR curves in utils/plotting/roc-pr.py and the MOE validation scripts
   - upsetplot           # utils/plotting/upset-plot.py (reviewer point R2.3)
   - openjdk             # Java runtime for OWLTools map2slim in utils/enrichment/build_goslim_gmt.py (only to rebuild libs/GOslim_*; OWLTools itself is downloaded, see data/README.md)
