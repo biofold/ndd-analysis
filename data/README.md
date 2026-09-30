@@ -209,3 +209,22 @@ Result: BP 69, CC 25, MF 38 slim terms (counts per library in
 3. GeneTrek https://genetrek.pasteur.fr/downloadAllData?filetype=tsv
 4. SynNDD  https://sysndd.dbmr.unibe.ch/Genes
 5. DBD     https://dbd.geisingeradmi.org/downloads/DBD-Genes-Full-Data.csv
+
+### Gene identifier resolution (used by the iNDDx server)
+
+- `python utils/data_extraction/build_gene_id_resolution.py --genes data/gene_all_score.txt --hgnc data/raw/hgnc_complete_set_20260930.txt.gz --output data/gene_id_resolution.tsv.gz`
+- Every universe gene gets its HGNC ID by approved symbol (19,328) or, for the 26 genes
+  HGNC has renamed since the universe was built, by a unique previous symbol (e.g. the
+  universe's *AATK* is HGNC's *LMTK1*, *IL1RL1* is *IL33R*).
+- Every identifier of every approved HGNC entry (all locus types) becomes an upper-cased
+  key; the first matching tier decides: iNDDx symbol > current HGNC symbol > HGNC ID >
+  Entrez > Ensembl > UniProt > previous symbol > alias. Status `resolved` (one entry, in
+  the universe), `not_in_index` (one entry, outside it, e.g. a lncRNA) or `ambiguous`
+  (several entries at the deciding tier; candidates listed). Lower-tier matches to other
+  genes are kept in `other_matches` (e.g. *MDR1*: previous symbol of *ABCB1*, alias of
+  *TBC1D9*).
+- `auto_resolve = 1` (a lookup may return the gene directly) for iNDDx/current symbols and
+  IDs, and for previous symbols with no competing match; aliases never auto-resolve.
+- 255,205 keys: 138,271 resolved, 115,625 not in the index, 1,309 ambiguous;
+  105,236 auto-resolve. Symbols in the file are upper-cased keys; the `gene` column keeps
+  HGNC case (C9orf72).
