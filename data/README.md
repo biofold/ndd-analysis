@@ -105,9 +105,10 @@ which have no reachable primary source to repair from.
 
 **Status of the published analyses.** The MOE validation (step 6: Tables S10/S10b, S17/S18,
 the pLI and LOEUF violin/KS figures, the component figure) now reads gnomAD v2.1.1 from
-gnomAD's own file via `data/gene_gnomad_v2_mapped.tsv` (below). The dbNSFP value is kept in
-the master table as `gnomAD_pLI_dbNSFP` for comparison only
-(`results/docs/validation/pli_source_comparison.tsv`). Any pLI figure in the manuscript that
+gnomAD's own file via `data/gene_gnomad_v2_mapped.tsv` (below). Every pipeline uses gnomAD
+v2.1.1 only; the dbNSFP pLI is no longer joined into the master table. `data/gene_gnomad_pli.tsv`
+and `extract_gnomad_pli.py` are kept as a record, and `verify_gnomad_pli_source.py` still
+compares that file with gnomAD's own releases. Any pLI figure in the manuscript that
 is not produced by `run_ndd_analysis.py` must be redrawn separately.
 
 ### Per-gene mapping used by the pipeline
