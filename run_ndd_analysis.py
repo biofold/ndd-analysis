@@ -308,6 +308,16 @@ def step_initial_calculations(gene_files, output_dirs, libraries_enrichment, lib
         "--output_dir", str(results_dir),
         "--libraries", supercandidate_libs_str
     ], step_name="Identifying supercandidate genes", env_name=conda_env)
+
+    # Per-gene MOE table served by iNDDx (all genes; candidates must equal
+    # supercandidate.tsv, which the script enforces). Applied to the served
+    # master table by inddx-web tools/set_master_moe.py.
+    run_command_conda([
+        "python", str(get_absolute_path("utils/data_extraction/export_gene_moe.py")),
+        "--ndd-path", str(get_absolute_path(".")),
+        "--results", str(results_dir),
+        "--output", str(results_dir / "gene_moe.tsv")
+    ], step_name="Writing per-gene MOE table (gene_moe.tsv)", env_name=conda_env)
     
     # Score distribution analysis
     gmt_file = gene_files.get("gmt_file")
