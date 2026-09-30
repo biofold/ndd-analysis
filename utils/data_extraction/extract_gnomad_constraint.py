@@ -18,8 +18,8 @@ CONSUMERS
 ---------
 The output feeds the iNDDx API `gnomad_v2` block (api/db/load_mongo.py) and the
 website's pLI/LOEUF (tools/make_ndd_data_js.py), and is the input for recalculating
-the pLI analyses on gnomAD v2.1.1. The analysis scripts in utils/moe_validation/
-still read data/gene_gnomad_pli.tsv (dbNSFP) until they are switched deliberately.
+the pLI analyses on gnomAD v2.1.1. Every pipeline uses gnomAD v2.1.1 only; the
+dbNSFP-derived data/gene_gnomad_pli.tsv is kept as a record and is not read.
 
 INPUT
 -----

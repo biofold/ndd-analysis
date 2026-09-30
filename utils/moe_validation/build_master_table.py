@@ -42,8 +42,8 @@ The independent validation labels are joined in from data/:
     -- gnomAD v2.1.1 population constraint read from gnomAD's own release and
     joined on Ensembl ID (utils/data_extraction/map_gnomad_v2_to_genes.py).
     Derived from allele frequencies alone, so independent of literature
-    curation and of the GO/pathway annotation MOE is built from. The earlier
-    dbNSFP 5.2 pLI (symbol-joined) is kept as gnomAD_pLI_dbNSFP for reference.
+    curation and of the GO/pathway annotation MOE is built from. gnomAD v2.1.1
+    is the only constraint source; dbNSFP's symbol-joined pLI is not used.
   - ClinVar P/LP counts (clinvar_plp_gene_counts.tsv) -- clinical
     variant curation, independent of pathway enrichment.
   - GO annotation counts and PubMed counts (gene_go_annotation_counts.tsv,
@@ -212,10 +212,6 @@ def build(data_dir, supercandidate_file, sfari_file, output_dir):
                          "gnomAD constraint columns left empty\n")
         for c in constraint_cols:
             master[c] = pd.NA
-    dbnsfp = read_table(os.path.join(data_dir, "gene_gnomad_pli.tsv"))
-    if dbnsfp is not None:
-        dbnsfp = dbnsfp.rename(columns={"gnomAD_pLI": "gnomAD_pLI_dbNSFP"})
-        master = merge_on_symbol(master, dbnsfp, ["gnomAD_pLI_dbNSFP"])
 
     clinvar = read_table(os.path.join(data_dir, "clinvar_plp_gene_counts.tsv"))
     if clinvar is not None:
