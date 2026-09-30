@@ -56,7 +56,9 @@ def read_enrichment(enrichment_file):
     """Read an enrichment table, checking the stored precision of its p-values."""
     df = pd.read_csv(enrichment_file, sep='\t', dtype={PVAL_COL: str})
     check_pvalue_precision(df[PVAL_COL], enrichment_file)
-    df[PVAL_COL] = pd.to_numeric(df[PVAL_COL])
+    # float() is the exact decimal->double conversion; pd.to_numeric and read_csv's
+    # default parser can be one ulp off (9,238 of 16,114 HC values), see policy above.
+    df[PVAL_COL] = df[PVAL_COL].map(lambda x: float(x) if isinstance(x, str) else x)
     return df
 
 
