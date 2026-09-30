@@ -1,0 +1,90 @@
+gene	severity	category	detail
+AKAP17A	info	par_gene	chrX record ENSG00000197976 used; chrY copy ENSG00000292343
+ASMT	info	par_gene	chrX record ENSG00000196433 used; chrY copy ENSG00000292336
+ASMTL	info	par_gene	chrX record ENSG00000169093 used; chrY copy ENSG00000292339
+BAGE3	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:15728
+BAGE4	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:15730
+BAGE	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:942
+C10orf126	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:28693
+CD99	info	par_gene	chrX record ENSG00000002586 used; chrY copy ENSG00000292348
+CLECL1	info	assigned_by_hgnc_attr	HGNC Ensembl ID ENSG00000184293 not in GTF; GENCODE hgnc_id attribute on ENSG00000293488
+CRLF2	info	par_gene	chrX record ENSG00000205755 used; chrY copy ENSG00000292363
+CSF2RA	info	par_gene	chrX record ENSG00000198223 used; chrY copy ENSG00000292357
+DDX11L13	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:37112
+DHRSX	info	par_gene	chrX record ENSG00000169084 used; chrY copy ENSG00000292338
+DUSP13B	warning	rules_disagree	HGNC Ensembl ENSG00000079393; GENCODE hgnc_id attribute on ENSG00000079393,ENSG00000293542
+DUX1	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:3079
+DUX3	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:3081
+DUX5	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:3083
+FAM153B	warning	no_coordinates	HGNC Ensembl ID ENSG00000182230 not in GTF and no GENCODE record carries HGNC:27323
+FAM174C	warning	rules_disagree	HGNC Ensembl ENSG00000228300; GENCODE hgnc_id attribute on ENSG00000228300,ENSG00000310576
+GAGE12I	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:4105
+GAGE2B	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:31957
+GAGE2C	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:31958
+GAGE2D	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:31959
+GAGE4	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:4101
+GAGE5	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:4102
+GAGE6	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:4103
+GAGE7	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:4104
+GAGE8	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:4106
+GOLGA6L19	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:49416
+GOLGA8M	warning	rules_disagree	HGNC Ensembl ENSG00000188626; GENCODE hgnc_id attribute on ENSG00000188626,ENSG00000261480
+GSTT1	warning	no_coordinates	HGNC Ensembl ID ENSG00000277656 not in GTF and no GENCODE record carries HGNC:4641
+GTPBP6	info	par_gene	chrX record ENSG00000178605 used; chrY copy ENSG00000292358
+IGH	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:5477
+IGK	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:5715
+IGL	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:5853
+IL3RA	info	par_gene	chrX record ENSG00000185291 used; chrY copy ENSG00000292332
+IL9R	info	par_gene	chrX record ENSG00000124334 used; chrY copy ENSG00000292373
+MSL3B	info	assigned_by_hgnc_attr	HGNC Ensembl ID ENSG00000224287 not in GTF; GENCODE hgnc_id attribute on ENSG00000293137
+MUC3B	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:13384
+MUC8	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:7519
+P2RY8	info	par_gene	chrX record ENSG00000182162 used; chrY copy ENSG00000292333
+PAXX	info	assigned_by_hgnc_attr	HGNC Ensembl ID ENSG00000148362 not in GTF; GENCODE hgnc_id attribute on ENSG00000310560
+PCDHACT	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:8678
+PCDHGCT	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:8719
+PGBD3	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:19400
+PINX1	warning	rules_disagree	HGNC Ensembl ENSG00000254093; GENCODE hgnc_id attribute on ENSG00000254093,ENSG00000258724
+PLCXD1	info	par_gene	chrX record ENSG00000182378 used; chrY copy ENSG00000292344
+POLR2J3	warning	rules_disagree	HGNC Ensembl ENSG00000168255; GENCODE hgnc_id attribute on ENSG00000168255,ENSG00000285437
+PPP2R3B	info	par_gene	chrX record ENSG00000167393 used; chrY copy ENSG00000292327
+PRY2	warning	no_coordinates	HGNC Ensembl ID ENSG00000169807 not in GTF and no GENCODE record carries HGNC:21504
+PRY	warning	no_coordinates	HGNC Ensembl ID ENSG00000169789 not in GTF and no GENCODE record carries HGNC:14024
+RBMY1C	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:9914
+SCPPPQ1	info	assigned_by_hgnc_attr	HGNC Ensembl ID none not in GTF; GENCODE hgnc_id attribute on ENSG00000272856
+SDIM1	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:38749
+SHOX	info	par_gene	chrX record ENSG00000185960 used; chrY copy ENSG00000292354
+SIGLEC5	warning	rules_disagree	HGNC Ensembl ENSG00000105501; GENCODE hgnc_id attribute on ENSG00000105501,ENSG00000268500
+SLC25A6	info	par_gene	chrX record ENSG00000169100 used; chrY copy ENSG00000292334
+SMIM2	warning	no_coordinates	HGNC Ensembl ID ENSG00000139656 not in GTF and no GENCODE record carries HGNC:28776
+TAS2R33	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:19114
+TAS2R36	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:19115
+TRA	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:12027
+TRB	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:12155
+TRD	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:12252
+TRG	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:12271
+UGT1A	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:12529
+VAMP7	info	par_gene	chrX record ENSG00000124333 used; chrY copy ENSG00000292366
+ZBED1	info	par_gene	chrX record ENSG00000214717 used; chrY copy ENSG00000292345
+GTF2H2C_2	warning	no_coordinates	HGNC Ensembl ID ENSG00000274675 not in GTF and no GENCODE record carries HGNC:35418
+HLA-DRB3	warning	no_coordinates	HGNC Ensembl ID ENSG00000196101 not in GTF and no GENCODE record carries HGNC:4951
+HLA-DRB4	warning	no_coordinates	HGNC Ensembl ID ENSG00000227357 not in GTF and no GENCODE record carries HGNC:4952
+KIR2DL2	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:6330
+KIR2DL5A	warning	no_coordinates	HGNC Ensembl ID ENSG00000274143 not in GTF and no GENCODE record carries HGNC:16345
+KIR2DL5B	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:16346
+KIR2DS1	warning	no_coordinates	HGNC Ensembl ID ENSG00000276387 not in GTF and no GENCODE record carries HGNC:6333
+KIR2DS2	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:6334
+KIR2DS3	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:6335
+KIR2DS5	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:6337
+KIR3DS1	warning	no_coordinates	HGNC Ensembl ID ENSG00000275434 not in GTF and no GENCODE record carries HGNC:6340
+LILRA3	warning	no_coordinates	HGNC Ensembl ID ENSG00000276175 not in GTF and no GENCODE record carries HGNC:6604
+APOBEC3A_B	warning	no_coordinates	HGNC Ensembl ID ENSG00000262156 not in GTF and no GENCODE record carries HGNC:44196
+OR8U8	warning	no_coordinates	HGNC Ensembl ID ENSG00000262315 not in GTF and no GENCODE record carries HGNC:27538
+OR8U9	warning	no_coordinates	HGNC Ensembl ID ENSG00000281038 not in GTF and no GENCODE record carries HGNC:29166
+OR9G9	warning	no_coordinates	HGNC Ensembl ID ENSG00000262191 not in GTF and no GENCODE record carries HGNC:31940
+BAGE5	warning	no_coordinates	HGNC Ensembl ID none not in GTF and no GENCODE record carries HGNC:15732
+C4A_2	warning	no_coordinates	HGNC Ensembl ID ENSG00000227746 not in GTF and no GENCODE record carries HGNC:58753
+C4B_2	warning	no_coordinates	HGNC Ensembl ID ENSG00000233312 not in GTF and no GENCODE record carries HGNC:42398
+TAS2R45	warning	no_coordinates	HGNC Ensembl ID ENSG00000261936 not in GTF and no GENCODE record carries HGNC:18876
+CCL3L1	warning	no_coordinates	HGNC Ensembl ID ENSG00000277768 not in GTF and no GENCODE record carries HGNC:10628
+CCL4L1	warning	no_coordinates	HGNC Ensembl ID ENSG00000282604 not in GTF and no GENCODE record carries HGNC:10631

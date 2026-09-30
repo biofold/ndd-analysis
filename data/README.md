@@ -230,3 +230,20 @@ Result: BP 69, CC 25, MF 38 slim terms (counts per library in
 - 255,205 keys: 138,271 resolved, 115,625 not in the index, 1,309 ambiguous;
   105,236 auto-resolve. Symbols in the file are upper-cased keys; the `gene` column keeps
   HGNC case (C9orf72).
+
+### Gene coordinates (GRCh38; used by the iNDDx server)
+
+- GENCODE release 50 comprehensive annotation, primary chromosomes, pinned as
+  `data/raw/gencode.v50.annotation.gtf.gz` (published 2026-06-09; MD5
+  2d273848c6068682fabea72fae4896a9, as in GENCODE's MD5SUMS).
+- `python utils/data_extraction/extract_gene_coordinates.py --genes data/gene_all_score.txt --hgnc data/raw/hgnc_complete_set_20260930.txt.gz --gtf data/raw/gencode.v50.annotation.gtf.gz --annotation "GENCODE v50" --output data/gene_coordinates.tsv --log data/gene_coordinates_log.tsv`
+- Rule (never by symbol): HGNC Ensembl gene ID == GENCODE gene_id (19,288 genes); otherwise
+  GENCODE's own `hgnc_id` gene attribute (4: CLECL1, MSL3B, PAXX, SCPPPQ1; the first three
+  have a newer Ensembl ID than HGNC lists, stated in `coord_note`). 62 genes have no GENCODE
+  record on the primary chromosomes (mostly multi-copy families on unlocalised or
+  alternative sequences, e.g. BAGE, GAGE, DUX); they keep their HGNC cytoband.
+- Pseudoautosomal genes (17) use the chrX record; the chrY copy (own Ensembl ID) is noted.
+  Six genes whose `hgnc_id` attribute also sits on a second, overlapping GENCODE gene keep
+  the HGNC Ensembl ID match (warning in the log).
+- Coordinates are GENCODE `gene` records, 1-based inclusive; cytoband and MANE Select
+  come from the HGNC snapshot. Audit trail: `data/gene_coordinates_log.tsv`.
