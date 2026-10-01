@@ -170,11 +170,13 @@ def create_violin_plot(filename, category_col, score_col, output_file=None, save
     parts['cbars'].set_color('#666666')
     parts['cbars'].set_linewidth(0.8)  # Thinner line
     
-    # Add individual data points with jitter (very light)
+    # Add individual data points with jitter (very light). Fixed seed: the jitter is
+    # display only, and a seeded generator makes the figure byte-reproducible.
+    rng = np.random.default_rng(0)
     for i, cat in enumerate(categories):
         cat_data = df_clean[df_clean[cat_col_name] == cat][score_col_name].values
         # Add jittered points with very light colors
-        jitter = np.random.normal(0, 0.04, size=len(cat_data))
+        jitter = rng.normal(0, 0.04, size=len(cat_data))
         # Make points slightly darker than the violin but still light
         point_color = tuple(c * 0.7 for c in colors[i])
         ax.scatter(i + jitter, cat_data, alpha=0.3, s=8, 

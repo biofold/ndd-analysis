@@ -165,6 +165,10 @@ def perform_enrichment(gene_lists, background, library, output_dir, input_files)
             continue
         
         enr_results.res2d = enr_results.res2d.sort_values(by=["Adjusted P-value", "Odds Ratio"], ascending=[True, False])
+        # gseapy lists the overlap genes in Python set order, which changes with every
+        # process (hash randomisation); sort them so the tables are byte-reproducible
+        enr_results.res2d["Genes"] = enr_results.res2d["Genes"].map(
+            lambda g: ";".join(sorted(str(g).split(";"))) if isinstance(g, str) else g)
         # list_size/background_size are exactly the sizes gseapy used for this
         # call, so the 2x2 table reconstructed from Overlap is exact, not an
         # approximation from a size passed in separately.
