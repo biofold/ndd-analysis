@@ -173,7 +173,8 @@ def main():
     order_pr = np.argsort(rec_pts)
     rec_sorted = np.array(rec_pts)[order_pr]
     prec_sorted = np.array(prec_pts)[order_pr]
-    pr_auc = _trapezoid(prec_sorted, rec_sorted)
+    # average precision: step-wise sum of precision over recall increments (no interpolation)
+    pr_auc = float(np.sum(np.diff(rec_sorted) * prec_sorted[1:]))
 
     import matplotlib
     matplotlib.use("Agg")
@@ -201,7 +202,7 @@ def main():
             ax2.annotate(f">={cutoff}", (x, y), textcoords="offset points", xytext=(4, -8), fontsize=8)
     ax2.set_xlabel("Recall")
     ax2.set_ylabel("Precision")
-    ax2.set_title(f"Precision-recall curve (AUC = {pr_auc:.3f})")
+    ax2.set_title(f"Precision-recall curve (AP = {pr_auc:.3f})")
     ax2.set_xlim(-0.02, 1.02)
     ax2.set_ylim(-0.02, 1.02)
     ax2.legend(loc="lower left", fontsize=8)
@@ -219,7 +220,7 @@ def main():
     fig.savefig(out_fig, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"\nROC/PR figure saved to: {out_fig}")
-    print(f"ROC AUC: {roc_auc:.4f}  |  PR AUC: {pr_auc:.4f}")
+    print(f"ROC AUC: {roc_auc:.4f}  |  Average precision: {pr_auc:.4f}")
 
 
 if __name__ == "__main__":

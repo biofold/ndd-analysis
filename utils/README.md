@@ -20,13 +20,14 @@ Every script here is invoked by `run_ndd_analysis.py` (or, for
   score against reviewer points R1.3/R2.9/R2.10: `build_master_table.py`
   assembles the merged per-gene table these run on;
   `moe_clinvar_validation.py` and `moe_pli_validation.py` test it against
-  ClinVar and gnomAD constraint; `moe_annotation_bias_baseline.py` tests it
-  against annotation-volume baselines; `mondo_hpo_by_moe.py` compares MONDO
+  ClinVar and gnomAD constraint; `build_tada_input.py` joins the Fu et al. 2022 TADA-NDD
+  results; `moe_annotation_bias_baseline.py` tests it against GO annotation
+  density (GO terms per gene); `mondo_hpo_by_moe.py` compares MONDO
   and HPO term coverage across MOE tiers; `moe_component_analysis.py`
   quantifies redundancy between the five MOE components (phi, Jaccard, PCA),
   compares leave-one-component-out and HPO-augmented scores by DeLong's test,
   reports Youden J / F1 per MOE cutoff, ClinGen haploinsufficiency by tier and
-  MOE discrimination within PubMed-count quartiles (Tables S15-S20).
+  MOE discrimination within GO-term-count quartiles (Tables S15-S20).
 
 - **`plotting/`** — generic statistical plotting primitives shared across
   pipeline steps (violin, bar, pairwise KS/Fisher-test matrices, ROC/PR,
