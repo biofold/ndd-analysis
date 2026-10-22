@@ -864,9 +864,10 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- Table S10: MOE vs ClinVar P/LP adjusted for gnomAD pLI (logistic regression)\n")
         f.write("- Table S10b: MOE vs ClinVar P/LP adjusted for gnomAD LOEUF (logistic regression)\n")
         f.write("- Table S26: gnomAD v2.1.1 gene-mapping log (exceptions and renamings, with severity)\n")
-        f.write("- Table S11: ROC/PR AUC of MOE vs annotation-density baselines\n")
-        f.write("- Table S12: MOE vs ClinVar P/LP adjusted for GO and PubMed counts\n")
-        f.write("- Table S13: Spearman correlation of MOE with GO and PubMed annotation density\n")
+        f.write("- Table S11: ROC-AUC / average precision of MOE vs GO-term count (ClinVar P/LP, TADA-NDD)\n")
+        f.write("- Table S12: MOE vs ClinVar P/LP and TADA-NDD, unadjusted and adjusted for GO-term count\n")
+        f.write("- Table S13: Spearman correlation of MOE with GO-term count (annotation density)\n")
+        f.write("- Table S13b: GO-term count per MOE tier\n")
         f.write("- Table S14: MONDO and HPO term coverage by MOE tier\n\n")
         f.write("### Validation (generated in Step 6)\n")
         f.write("- Independent validation of the MOE score against ClinVar P/LP status,\n")
@@ -1115,15 +1116,17 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     clinvar_validation = get_absolute_path("utils/moe_validation/moe_clinvar_validation.py")
     pli_validation = get_absolute_path("utils/moe_validation/moe_pli_validation.py")
     bias_baseline = get_absolute_path("utils/moe_validation/moe_annotation_bias_baseline.py")
+    tada_builder = get_absolute_path("utils/moe_validation/build_tada_input.py")
     violin_script = get_absolute_path("utils/plotting/violin.py")
     ks_test_script = get_absolute_path("utils/plotting/ks-test.py")
     bar_script = get_absolute_path("utils/plotting/bar.py")
     fisher_test_script = get_absolute_path("utils/plotting/fisher-test.py")
     roc_pr_script = get_absolute_path("utils/plotting/roc-pr.py")
 
-    sfari_file = data_dir / "SFARI-Gene_genes_03-28-2024release_05-17-2024.csv"
+    sfari_file = data_dir / "SFARI-Gene_genes_05-01-2026release_05-04-2026export.csv"
     go_counts = data_dir / "gene_go_annotation_counts.tsv"
-    pubmed_counts = data_dir / "gene_pubmed_counts.tsv"
+    fu_table = data_dir / "raw" / "fu2022_supplementary_table11.tsv"
+    lib_dir_go = Path(get_absolute_path("libs"))
 
     # Part A: merge the per-gene master table and the two validation inputs
     print("\n--- Part A: Building the per-gene master table ---", file=sys.stderr)
@@ -1164,20 +1167,30 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
             "--output-dir", str(validation_dir)
         ], step_name=f"MOE vs gnomAD {metric} validation", env_name=conda_env)
 
-    # Part D: annotation-density baselines (R2.9)
-    print("\n--- Part D: Annotation-bias baselines (R2.9) ---", file=sys.stderr)
-    if go_counts.exists() and pubmed_counts.exists():
+    # Part D: TADA-NDD outcome (Fu et al. 2022) and GO annotation density (R1.3, R2.9)
+    print("\n--- Part D: TADA-NDD outcome and GO annotation density (R1.3/R2.9) ---", file=sys.stderr)
+    tada_input = main_dir / "moe_tada_input.tsv"
+    if fu_table.exists():
         run_command_conda([
-            "python", str(bias_baseline),
-            str(master_table),
-            "--go-counts", str(go_counts),
-            "--pubmed-counts", str(pubmed_counts),
-            "--output-dir", str(validation_dir)
-        ], step_name="MOE vs annotation-density baselines", env_name=conda_env)
+            "python", str(tada_builder), str(master_table),
+            "--fu-table", str(fu_table),
+            "--ensembl-map", str(data_dir / "gene_gnomad_v2_mapped.tsv"),
+            "--id-resolution", str(data_dir / "gene_id_resolution.tsv.gz"),
+            "--output", str(tada_input)
+        ], step_name="Building TADA-NDD outcome (Fu et al. 2022)", env_name=conda_env)
     else:
-        sys.stderr.write(
-            "Warning: GO/PubMed count files not found; skipping annotation-bias baselines\n"
-        )
+        sys.stderr.write(f"Warning: {fu_table} not found; TADA-NDD outcome skipped\n")
+    if go_counts.exists():
+        cmd = ["python", str(bias_baseline), str(master_table),
+               "--go-counts", str(go_counts),
+               "--output-dir", str(validation_dir)]
+        if lib_dir_go.exists():
+            cmd += ["--check-libs", str(lib_dir_go)]
+        if tada_input.exists():
+            cmd += ["--tada-input", str(tada_input)]
+        run_command_conda(cmd, step_name="MOE vs GO annotation density", env_name=conda_env)
+    else:
+        sys.stderr.write("Warning: GO annotation count file not found; skipping annotation density\n")
 
     # Part E: per-tier distributions and pairwise tests (R2.10)
     print("\n--- Part E: Per-tier distributions and pairwise tests (R2.10) ---", file=sys.stderr)
@@ -1266,6 +1279,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "moe_annotation_bias_baseline_auc.tsv", "table_s11.tsv"),
         (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
         (validation_dir / "moe_annotation_density_correlations.tsv", "table_s13.tsv"),
+        (validation_dir / "moe_annotation_density_by_tier.tsv", "table_s13b.tsv"),
         (figures_dir / "mondo_hpo_by_moe.tsv", "table_s14.tsv"),
         (validation_dir / "moe_component_redundancy.tsv", "table_s15.tsv"),
         (validation_dir / "moe_component_pca.tsv", "table_s16.tsv"),

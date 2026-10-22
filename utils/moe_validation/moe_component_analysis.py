@@ -35,7 +35,7 @@ density. This script answers those directly from files already in the repo:
   6. Annotation density: Spearman correlation of MOE with the number of
      KEGG and Reactome pathways per gene (the third density measure named in
      the response draft), and MOE's ClinVar ROC-AUC WITHIN quartiles of
-     PubMed record count, i.e. among genes of comparable study volume.
+     GO-term count, i.e. among genes of comparable annotation density.
                                                               -> annotation_strata.tsv
 
 All analyses use the candidate class only (n = 6,856): MOE is defined only
@@ -461,17 +461,17 @@ def main():
                       "n": n, "n_positive": "", "value": rho,
                       "ci_low": np.tanh(zf - 1.96 * se_z),
                       "ci_high": np.tanh(zf + 1.96 * se_z), "p": fmt_p(p)})
-    npub = pd.to_numeric(cand["n_pubmed"], errors="coerce")
+    npub = pd.to_numeric(cand["n_go_annotations"], errors="coerce")
     ok = npub.notna().values
-    q = pd.qcut(npub[ok].rank(method="first"), 4, labels=["Q1 (least studied)", "Q2", "Q3", "Q4 (most studied)"])
+    q = pd.qcut(npub[ok].rank(method="first"), 4, labels=["Q1 (least annotated)", "Q2", "Q3", "Q4 (most annotated)"])
     sub = cand[ok].assign(pub_q=q.values)
     ysub = y_clin[ok]
     for lab in q.cat.categories:
         m = (sub["pub_q"] == lab).values
         auc, lo, up = delong_auc_ci(ysub[m], sub["MOE_score"].values[m])
         rng = npub[ok][m]
-        arows.append({"analysis": "MOE ROC-AUC for ClinVar P/LP within PubMed-count quartile",
-                      "measure": f"PubMed records {int(rng.min())}-{int(rng.max())}",
+        arows.append({"analysis": "MOE ROC-AUC for ClinVar P/LP within GO-term-count quartile",
+                      "measure": f"GO terms {int(rng.min())}-{int(rng.max())}",
                       "stratum": lab, "n": int(m.sum()), "n_positive": int(ysub[m].sum()),
                       "value": auc, "ci_low": lo, "ci_high": up,
                       "p": ""})

@@ -1,40 +1,33 @@
 #!/usr/bin/env python3
 """
-Test the reviewer's literal concern (R1.3, R2.9): "[MOE] may favor genes
-that are simply better annotated." Compares the MOE score against three
-baseline predictors of the same outcome (ClinVar P/LP status) that
-measure how much attention a gene has received in the literature/GO
-curation rather than any specific NDD evidence:
+MOE score versus GO annotation density (R1.3, R2.9).
 
-  - GO annotation count  (n_go_annotations: number of distinct GO terms,
-    across BP/CC/MF, a gene is annotated to -- from the same GO libraries
-    MOE's own enrichment is computed against)
-  - PubMed citation count (n_pubmed: from NCBI's gene2pubmed)
-  - random ranking (a permuted copy of MOE_score, as a null baseline)
+Reviewer 2 (comment 9) asks whether the MOE score "correlates with annotation
+density per gene", since a score built from GO/KEGG/Reactome enrichment may
+favour well-annotated genes. Annotation density is defined here as
 
-For each predictor, ROC-AUC / PR-AUC is computed by sweeping the raw
-predictor's own value as the classification threshold directly (AUC is
-invariant to monotonic score transforms, so this gives the same AUC a
-single-variable logistic regression on that predictor would) on the same
-candidate-only outcome MOE is validated against elsewhere (see
-moe_clinvar_validation.py), so ROC curves can be compared directly on one
-plot: if MOE's curve does not clearly exceed the annotation-count and
-PubMed-count curves, the reviewer's concern stands.
+  n_go_annotations: the number of distinct GO terms a gene is annotated to in
+  the GO Biological Process, Cellular Component and Molecular Function 2026
+  libraries (libs/GO_*_2026.gmt) -- the same libraries the MOE score is
+  computed from (data/gene_go_annotation_counts.tsv; rebuilt and checked
+  against the .gmt files by --check-libs).
 
-Then fits the WS4.7 adjusted model:
-  ClinVar_P/LP ~ MOE_score + log1p(n_go_annotations) + log1p(n_pubmed)
-and reports the MOE coefficient/OR with 95% CI -- if MOE remains
-significant here, its association with ClinVar evidence is not merely a
-proxy for annotation/study volume.
+For the candidate set (MOE is defined only for candidates) the script reports
+  1. GO-term count per MOE tier (n, mean, median, quartiles, genes with no
+     GO term)                                   -> moe_annotation_density_by_tier.tsv
+  2. Spearman correlation of MOE with the GO-term count, 95% CI from the
+     Fisher z-transform                         -> moe_annotation_density_correlations.tsv
+  3. MOE, GO-term count and a permuted MOE score as single predictors of each
+     outcome: ROC-AUC and average precision (step-wise sum of precision over
+     recall increments)                         -> moe_annotation_bias_baseline_auc.tsv
+  4. Logistic regression of each outcome on MOE, unadjusted and adjusted for
+     log(1 + GO-term count)                     -> moe_annotation_bias_adjusted_model.tsv
+  5. ROC curves of the three predictors, one panel per outcome
+                                                -> moe_annotation_bias_baseline_roc_pr.png
 
-Restricted to the candidate set by default (--all-classes to override),
-for the same non-circularity reason as moe_clinvar_validation.py /
-moe_pli_validation.py.
-
-Inputs: the merged gene master table (ndd_master_table.tsv), plus
-data/gene_go_annotation_counts.tsv and data/gene_pubmed_counts.tsv
-(built from the existing GO_*_2026.gmt libraries and NCBI's
-gene2pubmed.gz + Homo_sapiens.gene_info.gz respectively).
+Outcomes: ClinVar P/LP status (from the master table) and, if --tada-input is
+given (utils/moe_validation/build_tada_input.py), TADA-NDD FDR <= 0.1 from
+Fu et al. 2022.
 """
 
 import argparse
@@ -42,234 +35,201 @@ import os
 import sys
 
 import numpy as np
-
-# numpy.trapezoid is the renamed numpy.trapz, available only from NumPy 2.0
-# onward; numpy.trapz itself is deprecated in 2.x but still present, and is
-# the only name available on older NumPy. Resolve whichever exists so this
-# runs on either.
-_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 import pandas as pd
 import statsmodels.api as sm
 from scipy.stats import spearmanr
 
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 
-def roc_pr_points(score, true_pos):
-    """ROC/PR points by sweeping unique score values as thresholds
-    (works for both continuous and discrete/ordinal scores)."""
+
+def roc_pr(score, true_pos):
+    """ROC points and AUC (trapezoidal), and step-wise average precision,
+    sweeping every unique score value as a '>=' threshold."""
     thresholds = np.unique(score)
     thresholds = np.concatenate([[thresholds.min() - 1], thresholds, [thresholds.max() + 1]])
-    fpr, tpr, prec, rec = [], [], [], []
     n_pos = true_pos.sum()
     n_neg = len(true_pos) - n_pos
+    fpr, tpr, prec = [], [], []
     for t in thresholds:
-        pred_pos = score >= t
-        tp = int(np.sum(pred_pos & true_pos))
-        fp = int(np.sum(pred_pos & ~true_pos))
-        fn = int(np.sum(~pred_pos & true_pos))
+        pred = score >= t
+        tp = int(np.sum(pred & true_pos))
+        fp = int(np.sum(pred & ~true_pos))
         tpr.append(tp / n_pos if n_pos else 0.0)
         fpr.append(fp / n_neg if n_neg else 0.0)
         prec.append(tp / (tp + fp) if (tp + fp) else 1.0)
-        rec.append(tp / n_pos if n_pos else 0.0)
-    order = np.argsort(fpr)
-    roc_auc = _trapezoid(np.array(tpr)[order], np.array(fpr)[order])
-    order_pr = np.argsort(rec)
-    pr_auc = _trapezoid(np.array(prec)[order_pr], np.array(rec)[order_pr])
-    return (np.array(fpr)[order], np.array(tpr)[order], roc_auc), (np.array(rec)[order_pr], np.array(prec)[order_pr], pr_auc)
+    fpr, tpr, prec = map(np.array, (fpr, tpr, prec))
+    order = np.lexsort((tpr, fpr))
+    roc_auc = float(_trapezoid(tpr[order], fpr[order]))
+    o = np.argsort(tpr, kind="stable")
+    rec_s, prec_s = tpr[o], prec[o]
+    ap = float(np.sum(np.diff(rec_s) * prec_s[1:]))
+    return fpr[order], tpr[order], roc_auc, ap
+
+
+def fmt_p(p):
+    return f"{p:.4g}" if p > 0 else "<2.2e-308"
+
+
+def logit_rows(y, df, outcome):
+    rows = []
+    specs = {
+        "unadjusted": ["MOE_score"],
+        "adjusted for GO-term count": ["MOE_score", "log1p_n_go_annotations"],
+    }
+    for model_name, cols in specs.items():
+        X = sm.add_constant(df[cols].astype(float))
+        fit = sm.Logit(y.astype(int), X).fit(disp=False)
+        ci = fit.conf_int(alpha=0.05)
+        for term in cols:
+            rows.append({
+                "outcome": outcome, "model": model_name, "term": term,
+                "n": len(y), "n_positive": int(y.sum()),
+                "coef": fit.params[term], "std_err": fit.bse[term],
+                "odds_ratio": np.exp(fit.params[term]),
+                "or_ci_low": np.exp(ci.loc[term, 0]), "or_ci_high": np.exp(ci.loc[term, 1]),
+                "p_value": fmt_p(fit.pvalues[term]),
+            })
+    return rows
+
+
+def check_against_libs(go_counts, lib_dir):
+    from collections import Counter
+    cnt = Counter()
+    for lib in ("GO_Biological_Process_2026", "GO_Cellular_Component_2026", "GO_Molecular_Function_2026"):
+        path = os.path.join(lib_dir, f"{lib}.gmt")
+        with open(path) as fh:
+            for line in fh:
+                f = line.rstrip("\n").split("\t")
+                for g in {x for x in f[2:] if x}:
+                    cnt[g] += 1
+    rebuilt = go_counts["Gene"].map(cnt).fillna(0).astype(int)
+    n_diff = int((rebuilt != go_counts["n_go_annotations"].astype(int)).sum())
+    print(f"GO-term counts rebuilt from {lib_dir}: {len(cnt):,} genes; "
+          f"mismatches with the count file: {n_diff}")
+    if n_diff:
+        sys.exit("Error: gene_go_annotation_counts.tsv does not match the GO 2026 libraries")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("master_table", help="Path to ndd_master_table.tsv")
     ap.add_argument("--go-counts", default="data/gene_go_annotation_counts.tsv",
-                     help="Path to gene_go_annotation_counts.tsv (Gene, n_go_annotations)")
-    ap.add_argument("--pubmed-counts", default="data/gene_pubmed_counts.tsv",
-                     help="Path to gene_pubmed_counts.tsv (Symbol, n_pubmed)")
+                    help="Gene, n_go_annotations")
+    ap.add_argument("--tada-input", default=None,
+                    help="Optional output of build_tada_input.py (Gene, TADA_NDD)")
+    ap.add_argument("--check-libs", default=None,
+                    help="Optional libs/ directory: verify the GO-term counts against the .gmt files")
     ap.add_argument("--strict", action="store_true",
-                     help="Use n_plp_ge1star instead of n_pathogenic_likely_pathogenic as the "
-                          "ClinVar positive label")
-    ap.add_argument("--class-filter", default="candidate",
-                     help="Restrict to one Class value. Default: candidate (see docstring).")
-    ap.add_argument("--all-classes", action="store_true", help="Override --class-filter")
-    ap.add_argument("--seed", type=int, default=0, help="Random seed for the permuted-MOE null baseline")
-    ap.add_argument("--output-dir", default=".", help="Directory for output tables and figure")
+                    help="Use n_plp_ge1star instead of n_pathogenic_likely_pathogenic for ClinVar")
+    ap.add_argument("--class-filter", default="candidate")
+    ap.add_argument("--seed", type=int, default=0, help="Seed for the permuted-MOE null")
+    ap.add_argument("--output-dir", default=".")
     args = ap.parse_args()
-    if args.all_classes:
-        args.class_filter = None
 
-    for path in [args.master_table, args.go_counts, args.pubmed_counts]:
+    for path in [args.master_table, args.go_counts] + ([args.tada_input] if args.tada_input else []):
         if not os.path.exists(path):
             print(f"Error: File not found: {path}", file=sys.stderr)
             sys.exit(1)
 
+    go_counts = pd.read_csv(args.go_counts, sep="\t")
+    go_counts = go_counts.groupby("Gene", as_index=False)["n_go_annotations"].max()
+    if args.check_libs:
+        check_against_libs(go_counts, args.check_libs)
+
     df = pd.read_csv(args.master_table, sep="\t", dtype=str)
-    required = ["Gene", "MOE_score", "n_pathogenic_likely_pathogenic", "n_plp_ge1star"]
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        print(f"Error: master table is missing required column(s): {missing}", file=sys.stderr)
-        sys.exit(1)
-
-    go_counts = pd.read_csv(args.go_counts, sep="\t").rename(columns={"n_go_annotations": "n_go_annotations"})
-    pubmed_counts = pd.read_csv(args.pubmed_counts, sep="\t")[["Symbol", "n_pubmed"]].rename(columns={"Symbol": "Gene"})
-
-    # NCBI's gene2pubmed keys on GeneID, so a handful of symbols (e.g. TEC,
-    # MMD2) appear more than once. Left-merging those unaggregated would
-    # duplicate candidate genes and inflate n relative to the other validation
-    # scripts. Collapse to one row per symbol, keeping the largest count --
-    # the most favourable value for the annotation-volume baseline, so the
-    # comparison against MOE is not made artificially easy to win.
-    go_counts = go_counts.groupby("Gene", as_index=False).max(numeric_only=True)
-    pubmed_counts = pubmed_counts.groupby("Gene", as_index=False).max(numeric_only=True)
-
-    # A master table built by utils/build_master_table.py already carries
-    # n_go_annotations / n_pubmed columns. Drop them before merging so pandas
-    # does not disambiguate the duplicates into _x/_y suffixes; the standalone
-    # count files passed on the command line are taken as authoritative.
-    df = df.drop(columns=[c for c in ("n_go_annotations", "n_pubmed") if c in df.columns])
-
+    df = df.drop(columns=[c for c in ("n_go_annotations",) if c in df.columns])
     df = df.merge(go_counts, on="Gene", how="left")
-    df = df.merge(pubmed_counts, on="Gene", how="left")
-    df["n_go_annotations"] = df["n_go_annotations"].fillna(0)
-    df["n_pubmed"] = df["n_pubmed"].fillna(0)
-
+    df["n_go_annotations"] = df["n_go_annotations"].fillna(0).astype(int)
     df["MOE_score"] = pd.to_numeric(df["MOE_score"], errors="coerce")
-    df["n_pathogenic_likely_pathogenic"] = pd.to_numeric(df["n_pathogenic_likely_pathogenic"], errors="coerce").fillna(0)
-    df["n_plp_ge1star"] = pd.to_numeric(df["n_plp_ge1star"], errors="coerce").fillna(0)
+    for c in ("n_pathogenic_likely_pathogenic", "n_plp_ge1star"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
     df = df.dropna(subset=["MOE_score"])
-
     if args.class_filter:
-        if "Class" not in df.columns:
-            print("Error: --class-filter given but master table has no 'Class' column", file=sys.stderr)
-            sys.exit(1)
         df = df[df["Class"] == args.class_filter]
-        if df.empty:
-            print(f"Error: no genes found for Class == '{args.class_filter}'", file=sys.stderr)
-            sys.exit(1)
-
-    clinvar_col = "n_plp_ge1star" if args.strict else "n_pathogenic_likely_pathogenic"
-    true_pos = (df[clinvar_col] > 0).to_numpy()
+    df["log1p_n_go_annotations"] = np.log1p(df["n_go_annotations"].astype(float))
     n = len(df)
-    print(f"Genes analyzed: {n:,}{' (Class = ' + args.class_filter + ')' if args.class_filter else ''}")
-    print(f"ClinVar-positive prevalence: {true_pos.sum():,}/{n:,} ({true_pos.mean() * 100:.1f}%)\n")
+    print(f"Genes analyzed: {n:,} (Class = {args.class_filter})")
 
-    # Reviewer R2.9 asks literally whether the MOE score correlates with
-    # annotation density per gene. Report that directly (Spearman, since MOE is
-    # a 0-5 ordinal and the count variables are heavily right-skewed) before
-    # moving on to the harder question of whether MOE beats those counts as a
-    # predictor. A 95% CI is obtained from the Fisher z-transform of rho.
-    corr_rows = []
-    for label in ("n_go_annotations", "n_pubmed"):
-        rho, p_rho = spearmanr(df["MOE_score"], df[label])
-        se = 1.0 / np.sqrt(n - 3)
-        z = np.arctanh(rho)
-        lo, hi = np.tanh(z - 1.96 * se), np.tanh(z + 1.96 * se)
-        # scipy returns exactly 0.0 when the p-value underflows double
-        # precision; reporting "p = 0" in a supplementary table is misleading,
-        # so record the representable bound instead.
-        p_display = f"{p_rho:.4g}" if p_rho > 0 else "<2.2e-308"
-        corr_rows.append({"variable": label, "n": n, "spearman_rho": rho,
-                          "rho_ci_low": lo, "rho_ci_high": hi, "p_value": p_display})
-    corr_table = pd.DataFrame(corr_rows)
-    print("Spearman correlation of MOE score with annotation density:")
-    print(corr_table.to_string(index=False))
+    # 1. GO-term count per MOE tier
+    g = df.groupby(df["MOE_score"].astype(int))["n_go_annotations"]
+    tier = pd.DataFrame({
+        "n_genes": g.size(), "mean": g.mean(), "median": g.median(),
+        "q1": g.quantile(0.25), "q3": g.quantile(0.75),
+        "n_no_go_term": g.apply(lambda s: int((s == 0).sum())),
+    })
+    tier["fraction_no_go_term"] = tier["n_no_go_term"] / tier["n_genes"]
+    tier.index.name = "MOE_score"
+    out_tier = os.path.join(args.output_dir, "moe_annotation_density_by_tier.tsv")
+    tier.reset_index().to_csv(out_tier, sep="\t", index=False, float_format="%.4g")
+    print("\nGO-term count by MOE tier:")
+    print(tier.to_string())
+
+    # 2. Spearman correlation
+    rho, p_rho = spearmanr(df["MOE_score"], df["n_go_annotations"])
+    se = 1.0 / np.sqrt(n - 3)
+    z = np.arctanh(rho)
+    corr = pd.DataFrame([{
+        "variable": "n_go_annotations", "n": n, "spearman_rho": rho,
+        "rho_ci_low": np.tanh(z - 1.96 * se), "rho_ci_high": np.tanh(z + 1.96 * se),
+        "p_value": fmt_p(p_rho)}])
     out_corr = os.path.join(args.output_dir, "moe_annotation_density_correlations.tsv")
-    corr_table.to_csv(out_corr, sep="\t", index=False, float_format="%.4g")
-    print(f"\nCorrelation table saved to: {out_corr}\n")
+    corr.to_csv(out_corr, sep="\t", index=False, float_format="%.4g")
+    print("\nSpearman correlation of MOE with GO-term count:")
+    print(corr.to_string(index=False))
 
-    rng = np.random.default_rng(args.seed)
-    permuted_moe = rng.permutation(df["MOE_score"].to_numpy())
-
-    predictors = {
-        "MOE_score": df["MOE_score"].to_numpy(),
-        "n_go_annotations": df["n_go_annotations"].to_numpy(),
-        "n_pubmed": df["n_pubmed"].to_numpy(),
-        "random_ranking (permuted MOE)": permuted_moe,
-    }
+    # Outcomes
+    clinvar_col = "n_plp_ge1star" if args.strict else "n_pathogenic_likely_pathogenic"
+    outcomes = {"ClinVar P/LP": df.assign(y=(df[clinvar_col] > 0).astype(int))}
+    if args.tada_input:
+        tada = pd.read_csv(args.tada_input, sep="\t")[["Gene", "TADA_NDD"]]
+        outcomes["TADA-NDD FDR <= 0.1"] = df.merge(tada, on="Gene", how="inner").rename(
+            columns={"TADA_NDD": "y"})
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5.5))
-    colors = {"MOE_score": "#4689a3", "n_go_annotations": "#c05746", "n_pubmed": "#e0a03c",
-              "random_ranking (permuted MOE)": "#999999"}
-    summary_rows = []
-    for name, score in predictors.items():
-        (fpr, tpr, roc_auc), (rec, prec, pr_auc) = roc_pr_points(score, true_pos)
-        style = "-" if name == "MOE_score" else "--"
-        ax1.plot(fpr, tpr, style, color=colors[name], lw=2 if name == "MOE_score" else 1.3,
-                 label=f"{name} (AUC={roc_auc:.3f})")
-        ax2.plot(rec, prec, style, color=colors[name], lw=2 if name == "MOE_score" else 1.3,
-                 label=f"{name} (AUC={pr_auc:.3f})")
-        summary_rows.append({"predictor": name, "roc_auc": roc_auc, "pr_auc": pr_auc})
-
-    ax1.plot([0, 1], [0, 1], ":", color="#cccccc", lw=1)
-    ax1.set_xlabel("False positive rate")
-    ax1.set_ylabel("True positive rate")
-    ax1.set_title("ROC: MOE vs. annotation-volume baselines")
-    ax1.legend(loc="lower right", fontsize=8)
-    for spine in ax1.spines.values():
-        spine.set_visible(True)
-
-    ax2.axhline(true_pos.mean(), ls=":", color="#cccccc", lw=1)
-    ax2.set_xlabel("Recall")
-    ax2.set_ylabel("Precision")
-    ax2.set_title("Precision-recall: MOE vs. annotation-volume baselines")
-    ax2.legend(loc="upper right", fontsize=8)
-    for spine in ax2.spines.values():
-        spine.set_visible(True)
-
-    fig.suptitle(
-        f"Does MOE beat simple annotation-volume proxies?"
-        f"{' -- ' + args.class_filter if args.class_filter else ''} (n={n:,})",
-        fontsize=12, fontweight="bold",
-    )
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    rng = np.random.default_rng(args.seed)
+    colors = {"MOE_score": "#4689a3", "n_go_annotations": "#c05746",
+              "permuted MOE score": "#999999"}
+    fig, axes = plt.subplots(1, len(outcomes), figsize=(6 * len(outcomes), 5.5), squeeze=False)
+    auc_rows, model_rows = [], []
+    for ax, (name, d) in zip(axes[0], outcomes.items()):
+        y = d["y"].to_numpy().astype(bool)
+        preds = {"MOE_score": d["MOE_score"].to_numpy(),
+                 "n_go_annotations": d["n_go_annotations"].to_numpy(),
+                 "permuted MOE score": rng.permutation(d["MOE_score"].to_numpy())}
+        for pname, s in preds.items():
+            fpr, tpr, auc, apr = roc_pr(s, y)
+            auc_rows.append({"outcome": name, "n": len(y), "n_positive": int(y.sum()),
+                             "predictor": pname, "roc_auc": auc, "average_precision": apr})
+            ax.plot(fpr, tpr, "-" if pname == "MOE_score" else "--", color=colors[pname],
+                    lw=2 if pname == "MOE_score" else 1.3, label=f"{pname} (AUC = {auc:.3f})")
+        ax.plot([0, 1], [0, 1], ":", color="#cccccc", lw=1)
+        ax.set_xlabel("False positive rate")
+        ax.set_ylabel("True positive rate")
+        ax.set_title(f"{name} (n = {len(y):,}; {int(y.sum()):,} positive)")
+        ax.legend(loc="lower right", fontsize=8)
+        model_rows += logit_rows(d["y"].to_numpy(), d, name)
+    fig.tight_layout()
     out_fig = os.path.join(args.output_dir, "moe_annotation_bias_baseline_roc_pr.png")
     fig.savefig(out_fig, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
-    summary = pd.DataFrame(summary_rows)
-    out_summary = os.path.join(args.output_dir, "moe_annotation_bias_baseline_auc.tsv")
-    summary.to_csv(out_summary, sep="\t", index=False, float_format="%.4g")
-    print("Single-predictor AUC comparison:")
-    print(summary.to_string(index=False))
-    print(f"\nBaseline-comparison figure saved to: {out_fig}")
-    print(f"AUC summary saved to: {out_summary}\n")
+    auc_table = pd.DataFrame(auc_rows)
+    out_auc = os.path.join(args.output_dir, "moe_annotation_bias_baseline_auc.tsv")
+    auc_table.to_csv(out_auc, sep="\t", index=False, float_format="%.4g")
+    print("\nSingle-predictor comparison:")
+    print(auc_table.to_string(index=False))
 
-    moe_beats_go = summary.loc[summary["predictor"] == "MOE_score", "roc_auc"].iloc[0] > \
-                   summary.loc[summary["predictor"] == "n_go_annotations", "roc_auc"].iloc[0]
-    moe_beats_pubmed = summary.loc[summary["predictor"] == "MOE_score", "roc_auc"].iloc[0] > \
-                       summary.loc[summary["predictor"] == "n_pubmed", "roc_auc"].iloc[0]
-    print(f"MOE_score ROC-AUC exceeds n_go_annotations: {moe_beats_go}")
-    print(f"MOE_score ROC-AUC exceeds n_pubmed: {moe_beats_pubmed}\n")
-
-    # WS4.7 adjusted model
-    X = pd.DataFrame({
-        "MOE_score": df["MOE_score"].astype(float),
-        "log1p_n_go_annotations": np.log1p(df["n_go_annotations"].astype(float)),
-        "log1p_n_pubmed": np.log1p(df["n_pubmed"].astype(float)),
-    })
-    X = sm.add_constant(X)
-    model = sm.Logit(true_pos.astype(int), X).fit(disp=False)
-
-    coef_table = pd.DataFrame({
-        "term": model.params.index, "coef": model.params.values,
-        "std_err": model.bse.values, "z": model.tvalues.values, "p_value": model.pvalues.values,
-    })
-    coef_table["odds_ratio"] = np.exp(coef_table["coef"])
-    ci = model.conf_int(alpha=0.05)
-    coef_table["or_ci_low"] = np.exp(ci[0].values)
-    coef_table["or_ci_high"] = np.exp(ci[1].values)
-
+    model_table = pd.DataFrame(model_rows)
     out_model = os.path.join(args.output_dir, "moe_annotation_bias_adjusted_model.tsv")
-    coef_table.to_csv(out_model, sep="\t", index=False, float_format="%.4g")
-    print("Adjusted model: P(ClinVar P/LP) ~ MOE_score + log1p(n_go_annotations) + log1p(n_pubmed)")
-    print(coef_table.to_string(index=False))
-    print(f"\nAdjusted model table saved to: {out_model}")
-
-    moe_p = coef_table.loc[coef_table["term"] == "MOE_score", "p_value"].iloc[0]
-    print(f"\nMOE_score remains significant after adjusting for annotation/PubMed volume: "
-          f"{moe_p < 0.05} (p = {moe_p:.3g})")
+    model_table.to_csv(out_model, sep="\t", index=False, float_format="%.4g")
+    print("\nLogistic regression (odds ratio per MOE point; per unit of log(1 + GO terms)):")
+    print(model_table[["outcome", "model", "term", "odds_ratio", "or_ci_low", "or_ci_high",
+                       "p_value"]].to_string(index=False))
+    for path in (out_tier, out_corr, out_auc, out_model, out_fig):
+        print(f"Saved: {path}")
 
 
 if __name__ == "__main__":
