@@ -320,7 +320,9 @@ def main():
         # keep the data xlim unchanged so the added labels sit in the margin outside it
         mat_ax.set_xlim(xlim)
 
-    fig.suptitle(f"UpSet plot \u2014 {class_name.capitalize()} genes "
+    display_name = {"curated": "High-Confidence", "candidate": "Candidate",
+                    "no_evidence": "No NDD evidence"}.get(class_name, class_name.capitalize())
+    fig.suptitle(f"UpSet plot \u2014 {display_name} genes "
                  f"(total: {len(class_genes):,})", fontsize=13, fontweight='bold')
 
     plt.savefig(output_file, dpi=300, bbox_inches='tight', facecolor='white')
