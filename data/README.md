@@ -1,6 +1,9 @@
 ## Collection of tables of NDD associated Genes
 
-1. SFARI Database Authism related genes			SFARI-Gene_genes_03-28-2024release_05-17-2024.csv
+1. SFARI Gene database, autism-related genes		SFARI-Gene_genes_05-01-2026release_05-04-2026export.csv
+   (SFARI Gene release 1 May 2026, exported 4 May 2026 from https://gene.sfari.org/; 1,277 rows.
+   Score 1 = SF1 list (242 protein-coding genes); scores 2, 3 or no score = SF list.
+   Replaces SFARI-Gene_genes_03-28-2024release_05-17-2024.csv.)
 2. Orphanet developmental disorders			develop_genename.txt
 3. Orphanet neurological disorders			neuro_genename.txt
 4. Data from publication PMID:37541188			list-ndd-37541188.txt
@@ -207,7 +210,7 @@ Result: BP 69, CC 25, MF 38 slim terms (counts per library in
 2. SFARI   https://gene.sfari.org//wp-content/themes/sfari-gene/utilities/download-csv.php?api-endpoint=genes \
            https://gene.sfari.org//wp-content/themes/sfari-gene/utilities/download-csv.php?api-endpoint=human-gene-scores
 3. GeneTrek https://genetrek.pasteur.fr/downloadAllData?filetype=tsv
-4. SynNDD  https://sysndd.dbmr.unibe.ch/Genes
+4. SysNDD  https://sysndd.dbmr.unibe.ch/Genes
 5. DBD     https://dbd.geisingeradmi.org/downloads/DBD-Genes-Full-Data.csv
 
 ### Gene identifier resolution (used by the iNDDx server)

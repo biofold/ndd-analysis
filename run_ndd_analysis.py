@@ -1123,7 +1123,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     fisher_test_script = get_absolute_path("utils/plotting/fisher-test.py")
     roc_pr_script = get_absolute_path("utils/plotting/roc-pr.py")
 
-    sfari_file = data_dir / "SFARI-Gene_genes_03-28-2024release_05-17-2024.csv"
+    sfari_file = data_dir / "SFARI-Gene_genes_05-01-2026release_05-04-2026export.csv"
     go_counts = data_dir / "gene_go_annotation_counts.tsv"
     fu_table = data_dir / "raw" / "fu2022_supplementary_table11.tsv"
     lib_dir_go = Path(get_absolute_path("libs"))

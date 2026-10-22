@@ -315,7 +315,7 @@ if __name__ == "__main__":
                     help="MOE score file from scripts/2_supercandidate.py")
     ap.add_argument("--sfari-file",
                     default=os.path.join(
-                        "data", "SFARI-Gene_genes_03-28-2024release_05-17-2024.csv"),
+                        "data", "SFARI-Gene_genes_05-01-2026release_05-04-2026export.csv"),
                     help="SFARI gene release CSV")
     ap.add_argument("--output-dir", default="results/main",
                     help="Where to write ndd_master_table.tsv and the derived inputs")
