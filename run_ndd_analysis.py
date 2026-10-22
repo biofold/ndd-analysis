@@ -1117,6 +1117,7 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
     pli_validation = get_absolute_path("utils/moe_validation/moe_pli_validation.py")
     bias_baseline = get_absolute_path("utils/moe_validation/moe_annotation_bias_baseline.py")
     tada_builder = get_absolute_path("utils/moe_validation/build_tada_input.py")
+    tada_constraint = get_absolute_path("utils/moe_validation/moe_tada_constraint.py")
     violin_script = get_absolute_path("utils/plotting/violin.py")
     ks_test_script = get_absolute_path("utils/plotting/ks-test.py")
     bar_script = get_absolute_path("utils/plotting/bar.py")
@@ -1178,6 +1179,11 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
             "--id-resolution", str(data_dir / "gene_id_resolution.tsv.gz"),
             "--output", str(tada_input)
         ], step_name="Building TADA-NDD outcome (Fu et al. 2022)", env_name=conda_env)
+        run_command_conda([
+            "python", str(tada_constraint), str(master_table),
+            "--tada-input", str(tada_input),
+            "--output-dir", str(validation_dir)
+        ], step_name="TADA-NDD vs MOE adjusted for gnomAD constraint", env_name=conda_env)
     else:
         sys.stderr.write(f"Warning: {fu_table} not found; TADA-NDD outcome skipped\n")
     if go_counts.exists():
@@ -1276,6 +1282,8 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
         (validation_dir / "moe_clinvar_operating_characteristics.tsv", "table_s9.tsv"),
         (validation_dir / "moe_pli_logistic_regression.tsv", "table_s10.tsv"),
         (validation_dir / "moe_loeuf_logistic_regression.tsv", "table_s10b.tsv"),
+        (validation_dir / "moe_pli_tada_logistic_regression.tsv", "table_s10c.tsv"),
+        (validation_dir / "moe_loeuf_tada_logistic_regression.tsv", "table_s10d.tsv"),
         (validation_dir / "moe_annotation_bias_baseline_auc.tsv", "table_s11.tsv"),
         (validation_dir / "moe_annotation_bias_adjusted_model.tsv", "table_s12.tsv"),
         (validation_dir / "moe_annotation_density_correlations.tsv", "table_s13.tsv"),
