@@ -204,6 +204,45 @@ neither is needed to run the pipeline itself.
 Result: BP 69, CC 25, MF 38 slim terms (counts per library in
 `libs/GOslim_2026_build_report.tsv`).
 
+## MONDO disease annotation (data/mondo.txt, MONDO_2026 libraries)
+
+Raw source files in `data/raw/`:
+
+1. `data/raw/gene_condition_source_id_2026-07-14.tsv` -- ClinVar
+   gene_condition_source_id (accessed 14 July 2026 from
+   https://ftp.ncbi.nlm.nih.gov/pub/clinvar/gene_condition_source_id;
+   13,456 gene-condition rows, latest LastUpdated 12 July 2026).
+   Gene-disease links with MONDO IDs (9,596 rows) or MedGen ConceptIDs.
+2. `data/raw/MONDO_CUI_history_2026-07-16.txt` -- MedGen MONDO_CUI_history
+   (accessed 16 July 2026 from https://ftp.ncbi.nlm.nih.gov/pub/medgen/;
+   23,304 current ConceptID->MONDO mappings, IsCurrent == 1). Used to
+   recover MONDO codes for ClinVar rows that carry only a ConceptID.
+3. `data/raw/mondo_2026-07-06.json.gz` -- MONDO ontology, release
+   2026-07-06 (versionIRI
+   http://purl.obolibrary.org/obo/mondo/releases/2026-07-06/mondo.owl),
+   gzipped. Used for the top-level parent categories and to drop
+   obsolete terms.
+
+`utils/data_extraction/extract_mondo.py` runs the four steps (ClinVar
+codes -> missing MONDO codes from MedGen -> parent categories ->
+`MONDO_2026.gmt` / `MONDO_2026_GROUPS.gmt`):
+
+`python utils/data_extraction/extract_mondo.py --genes list_NDD_score.tsv --clinvar data/raw/gene_condition_source_id_2026-07-14.tsv --mondo-history data/raw/MONDO_CUI_history_2026-07-16.txt --mondo-json data/raw/mondo_2026-07-06.json.gz --gmt-prefix MONDO_2026 --outdir results/`
+
+Note: the helper modules imported by the script (`add_disease_code.py`,
+`retrieve_missing_mondo.py`, `retrieve_parent_mondo.py`,
+`generate_gmt.py`) are not yet in the repository.
+
+## TADA-NDD gene-level association (Fu et al. 2022)
+
+1. `data/raw/fu2022_supplementary_table11.tsv` -- Supplementary Table 11
+   of Fu et al., Nat Genet 2022 (doi:10.1038/s41588-022-01104-0),
+   exported to TSV; TADA-NDD FDR per gene.
+2. `data/raw/fu2022_supplementary_table11_legend.txt` -- the table legend.
+
+Read by `utils/moe_validation/build_tada_input.py` (Part D of
+`run_ndd_analysis.py`); FDR <= 0.1 defines TADA-NDD positives.
+
 ## Useful links
 1. DDG2P   https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz \
            https://ftp.ebi.ac.uk/pub/databases/gene2phenotype

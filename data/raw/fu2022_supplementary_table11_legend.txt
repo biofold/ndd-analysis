@@ -1,0 +1,29 @@
+Supplementary Table 11. Gene association results
+The expanded TADA model was used to calculate the False Discovery Rate (FDR) of each gene with ASD, DD, and NDD. The FDRs were back-transformed to pseudo p-values without multi-testing correction.
+gene	gene name
+gene_gencodeV33	gene name in gencodeV33 annotation
+gene_id	ENSEMBL gene id
+chromosome	chromsome of gene
+ASD72	membership in TADA ASD FDR < 0.001 list of 72
+ASD185	membership in TADA ASD FDR < 0.05 list of 185
+DD309	membership in TAD DD FDR < 0.001 list of 309
+DD477	membership in TADA DD FDR < 0.05 list of 477
+NDD373	membership in TADA NDD FDR < 0.001 list of 373
+NDD664	membership in TADA NDD FDR < 0.05 list of 664
+Satterstrom102	membership in Satterstrom FDR < 0.1 list of 102
+SCZ10	membership in Singh et al. Bonferroni significant gene list
+SCZ244	membership in Singh et al. analysis with p-value < 0.01
+FDR_TADA_ASD	TADA ASD FDR of the gene
+FDR_TADA_DD	TADA DD FDR of the gene
+FDR_TADA_NDD	TADA NDD FDR of the gene
+p_TADA_ASD	back-transformed p-value of the TADA ASD FDR
+p_TADA_DD	back-transformed p-value of the TADA DD FDR
+p_TADA_NDD	back-transformed p-value of the TADA NDD FDR
+l10BF_ASD_PTV	log10 Bayes Factor of the PTV evidence in the ASD cohort
+l10BF_ASD_misB	log10 Bayes Factor of the misB evidence in the ASD cohort
+l10BF_ASD_misA	log10 Bayes Factor of the misA evidence in the ASD cohort
+l10BF_ASD_DEL	log10 Bayes Factor of the deletion/DEL evidence in the ASD cohort
+l10BF_ASD_DUP	log10 Bayes Factor of the duplication/DUP evidence in the ASD cohort
+l10BF_DD_PTV	log10 Bayes Factor of the PTV evidence in the DD cohort
+l10BF_DD_misB	log10 Bayes Factor of the misB evidence in the DD cohort
+l10BF_DD_misA	log10 Bayes Factor of the misA evidence in the DD cohort
