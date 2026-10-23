@@ -1248,7 +1248,8 @@ def step_reviewer_validation(gene_files, output_dirs, conda_env, data_dir):
             "--hpo", str(Path(data_dir) / "gene_hpo_terms.tsv"),
             "--libs", str(get_absolute_path("libs")),
             "--output-prefix", str(validation_dir / "moe_component")
-        ], step_name="Running MOE component analyses", env_name=conda_env)
+        ] + (["--tada-input", str(tada_input)] if tada_input.exists() else []),
+            step_name="Running MOE component analyses", env_name=conda_env)
     else:
         sys.stderr.write(f"Warning: {component_script} not found; skipping component analyses\n")
 

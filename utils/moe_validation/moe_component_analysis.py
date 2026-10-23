@@ -14,7 +14,8 @@ density. This script answers those directly from files already in the repo:
   1. Redundancy between the five binary MOE indicators: phi coefficient and
      Jaccard index for every pair, and a PCA of the five indicators
      (explained-variance ratio per component).                 -> redundancy.tsv, pca.tsv
-  2. What each component adds: ClinVar P/LP ROC-AUC of the full score, of
+  2. What each component adds (Tables S13-S14 of the revision): ClinVar P/LP
+     (and, with --tada-input, TADA-NDD FDR <= 0.1) ROC-AUC of the full score, of
      each single component, and of every leave-one-component-out 4-point
      score, each compared with the full score by DeLong's test for correlated
      ROC curves.                                              -> score_variants.tsv
@@ -306,6 +307,9 @@ def main():
     ap.add_argument("--kegg-gmt", default="KEGG_2021_Human.gmt",
                     help="KEGG library used by the MOE score (default: %(default)s)")
     ap.add_argument("--reactome-gmt", default="Reactome_Pathways_2024.gmt")
+    ap.add_argument("--tada-input", default=None,
+                    help="moe_tada_input.tsv from build_tada_input.py (Gene, TADA_NDD); adds the "
+                         "TADA-NDD outcome (FDR <= 0.1, autosomal genes only)")
     ap.add_argument("--output-prefix", required=True)
     args = ap.parse_args()
 
@@ -324,6 +328,10 @@ def main():
     # gnomAD's own LOEUF decile (0 = the 10% most constrained genes)
     loeuf_dec = pd.to_numeric(cand["gnomAD_LOEUF_decile"], errors="coerce")
     hi = pd.to_numeric(cand["ClinGen_HI_score"], errors="coerce")
+    tada = None
+    if args.tada_input:
+        t = pd.read_csv(args.tada_input, sep="\t", usecols=["Gene", "TADA_NDD"]).drop_duplicates("Gene")
+        tada = cand[["Gene"]].merge(t, on="Gene", how="left")["TADA_NDD"]
 
     # ---- 1. redundancy ----------------------------------------------------
     red = []
@@ -367,6 +375,9 @@ def main():
         # genes not curated by ClinGen are counted as "not HI 3"
         "ClinGen HI = 3": (np.ones(len(cand), bool), (hi == 3).astype(int).values),
     }
+    if tada is not None:
+        # genes without a TADA-NDD result (non-autosomal, unmapped) are excluded
+        outcomes["TADA-NDD (FDR <= 0.1)"] = (tada.notna().values, tada.fillna(0).astype(int).values)
     variants = {"MOE (5 components)": cand["MOE_score"].values}
     for c in COMPONENTS:
         variants[f"single: {COMPONENT_LABEL[c]}"] = cand[c].values
