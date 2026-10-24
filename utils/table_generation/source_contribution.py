@@ -32,12 +32,12 @@ seven source flags:
      genes that cannot be placed in a three-set Venn diagram of Orphanet /
      GeneTrek / Sanchis-Juan).
 
-Rule (Table 1), with HC = GeneTrek high-confidence, LC = GeneTrek candidate:
+Rule (Fig. 1), with HC = GeneTrek high-confidence, LC = GeneTrek low-confidence:
   high-confidence  <- HC or SF1 (SFARI Gene score 1) or (Orphanet neuro and
                       Orphanet develop) or (Sanchis-Juan and (neuro or develop
-                      or LC or SF, SFARI score >= 2))
+                      or LC or SF, SFARI score 2 or 3, or unscored))
   candidate        <- not high-confidence and at least one flag
-  no reported evidence <- no flag
+  no NDD evidence  <- no flag
 
 Usage:
   python3 utils/table_generation/source_contribution.py \\
@@ -59,7 +59,7 @@ RESOURCES = {
     "Sanchis-Juan et al.": ["SanchisJuan"],
 }
 LABEL = {"curated": "high-confidence", "candidate": "candidate",
-         "no_evidence": "no reported evidence"}
+         "no_evidence": "no NDD evidence"}
 
 
 def classify(f):
@@ -82,7 +82,7 @@ def plot_decision_tree(steps, out_png):
     from matplotlib.patches import FancyBboxPatch
 
     COL = {"high-confidence": "#4689a3", "candidate": "#e08a2c",
-           "no reported NDD evidence": "#9a9a9a"}
+           "no NDD evidence": "#9a9a9a"}
     plt.rcParams.update({"font.size": 8})
     fig, ax = plt.subplots(figsize=(7.2, 6.4))
     ax.set_xlim(0, 10); ax.set_ylim(-0.7, 10.45); ax.axis("off")
@@ -138,17 +138,54 @@ def plot_decision_tree(steps, out_png):
     box(xh, ys[4], 2.5, 0.9, f"Candidate\n(score 1)\nn = {n_cand:,}",
         COL["candidate"], "#333333", tc="white", bold=True)
     arrow(xq, ys[4] - hq / 2, xq, yb + 0.45, f"no: {n_none:,}", lx=0.12, ha="left")
-    box(xq, yb, 3.4, 0.9, f"No reported NDD evidence\n(score 0)\nn = {n_none:,}",
-        COL["no reported NDD evidence"], "#333333", tc="white", bold=True)
+    box(xq, yb, 3.4, 0.9, f"No NDD evidence\n(score 0)\nn = {n_none:,}",
+        COL["no NDD evidence"], "#333333", tc="white", bold=True)
 
-    ax.text(0.05, -0.65,
-            "HC/LC: GeneTrek high-confidence / candidate; NEU/DEV: Orphanet neurological / "
-            "developmental;\nSJ: Sanchis-Juan et al.; SF1 / SF: SFARI Gene score 1 / "
-            "score 2 or higher. Counts: genes leaving at each branch.",
-            fontsize=6.5, color="#555555", va="bottom")
     fig.savefig(out_png, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
+
+
+PSEUDOCODE = """for each gene g in the {n:,} HGNC protein-coding genes:
+    HC    <- g in GeneTrek high-confidence list
+    LC    <- g in GeneTrek low-confidence list
+    NEU   <- g in Orphanet neurological disorders
+    DEV   <- g in Orphanet developmental disorders
+    SJ    <- g in Sanchis-Juan et al. NDD gene list
+    SF1   <- g has SFARI Gene score 1
+    SF    <- g in SFARI Gene with score 2 or 3, or unscored
+
+    if HC or SF1
+       or (NEU and DEV)
+       or (SJ and (NEU or DEV or LC or SF)):
+        class(g) <- high-confidence      # score 2
+    else if LC or NEU or DEV or SJ or SF:
+        class(g) <- candidate            # score 1
+    else:
+        class(g) <- no NDD evidence      # score 0"""
+
+
+def plot_figure1(tree_png, n_total, out_png):
+    """Fig. 1: (A) decision tree image, (B) equivalent pseudocode."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
+    from matplotlib.patches import FancyBboxPatch
+
+    img = mpimg.imread(tree_png)
+    fig = plt.figure(figsize=(15.6, 6.4))
+    axa = fig.add_axes([0.0, 0.0, 0.47, 0.95]); axa.imshow(img); axa.axis("off")
+    axb = fig.add_axes([0.485, 0.10, 0.50, 0.78]); axb.axis("off")
+    axb.set_xlim(0, 1); axb.set_ylim(0, 1)
+    axb.add_patch(FancyBboxPatch((0.0, 0.0), 1.0, 1.0, boxstyle="round,pad=0.0,rounding_size=0.03",
+                                 fc="#eaf3e6", ec="#1f2d3d", lw=1.2, transform=axb.transAxes))
+    axb.text(0.035, 0.5, PSEUDOCODE.format(n=n_total), family="monospace", fontsize=13.5,
+             va="center", ha="left", linespacing=1.45, transform=axb.transAxes)
+    fig.text(0.005, 0.965, "A", fontsize=18, fontweight="bold", va="top")
+    fig.text(0.475, 0.965, "B", fontsize=18, fontweight="bold", va="top")
+    fig.savefig(out_png, dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
@@ -182,7 +219,7 @@ def main():
                "genes_flagged_by_resource": int(f[cols].any(axis=1).sum()),
                "genes_changing_class": int(changed.sum())}
         for a in ["high-confidence", "candidate"]:
-            for b in ["candidate", "no reported evidence"]:
+            for b in ["candidate", "no NDD evidence"]:
                 if a == b:
                     continue
                 row[f"{a} -> {b}"] = int(tr.loc[a, b]) if a in tr.index and b in tr.columns else 0
@@ -250,6 +287,8 @@ def main():
         .to_csv(f"{args.output_prefix}_decision_tree.tsv", sep="\t", index=False)
     plot_decision_tree({"questions": tree, "n_none": n_none, "n_total": len(mt)},
                        f"{args.output_prefix}_decision_tree.png")
+    plot_figure1(f"{args.output_prefix}_decision_tree.png", len(mt),
+                 f"{args.output_prefix}_figure1.png")
 
     # 5. SFARI-only candidates
     others = [c for c in FLAGS if c not in RESOURCES["SFARI Gene"]]
