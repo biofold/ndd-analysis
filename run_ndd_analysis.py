@@ -875,10 +875,10 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("### Summaries\n- Summary tables for each analysis\n\n")
         f.write("### Matrices\n- Overlap matrices\n- Aggregated matrices\n\n")
         f.write("### Excel Files (generated in Step 5)\n")
-        f.write("- `supfile_1_ndd_gene_lists.xlsx`: Complete gene list, MOE list, Cancer list, MONDO list, SysNDD MOE list\n")
-        f.write("- `supfile_2_curated_enrichment.xlsx`: Curated set enrichment results\n")
+        f.write("- `supfile_1_ndd_gene_lists.xlsx`: Complete gene list (manuscript class and source-list names), MOE list, Cancer list, MONDO list, SysNDD MOE list, Legend\n")
+        f.write("- `supfile_2_high_confidence_enrichment.xlsx`: High-confidence set enrichment results\n")
         f.write("- `supfile_3_candidate_enrichment.xlsx`: Candidate set enrichment results\n")
-        f.write("- `supfile_4_no_evidence_enrichment.xlsx`: No evidence set enrichment results\n")
+        f.write("- `supfile_4_no_ndd_evidence_enrichment.xlsx`: No NDD evidence set enrichment results\n")
         f.write("- `supfile_5_cancer_compara.xlsx`: Comparison of significance of cancer and non cancer gene functions \n")
         f.write("- `ndd-report.xlsx`: Complete report with all tables\n\n")
         f.write("## Key Files\n")
@@ -888,6 +888,117 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- `sysndd_moe.tsv`: SysNDD scores combined with MOE scores\n")
     
     print(f"\n  ✓ Created README: {readme_path}", file=sys.stderr)
+
+# ----------------------------------------------------------------------
+# Supplementary-file export labels.
+# The pipeline keeps its internal class names (curated / candidate /
+# no_evidence) and source tags (hc, candidate, neuro, ...) everywhere, so that
+# no analysis result depends on this block. Only the copies written for the
+# Supplementary Files use the names of the manuscript (high-confidence, no NDD
+# evidence; source lists HC, LC, NEU, DEV, SF1, SF, SJ).
+# ----------------------------------------------------------------------
+SUPFILE_CLASS_LABELS = {"curated": "high_confidence", "candidate": "candidate",
+                        "no_evidence": "no_ndd_evidence"}
+SUPFILE_SOURCE_LABELS = {"hc": "HC", "candidate": "LC", "neuro": "NEU",
+                         "develop": "DEV", "sfari+": "SF1", "sfari": "SF",
+                         "sanchis": "SJ"}
+SUPFILE_SOURCE_ORDER = ["HC", "LC", "NEU", "DEV", "SF1", "SF", "SJ"]
+
+SUPFILE1_LEGEND = [
+    ("Sheet", "Column", "Description"),
+    ("Complete_Gene_List", "Gene", "HGNC-approved symbol of the protein-coding gene (19,354 genes)"),
+    ("Complete_Gene_List", "Class", "high_confidence, candidate or no_ndd_evidence (Section 4.1, Fig. 1)"),
+    ("Complete_Gene_List", "Class_code", "2 = high-confidence, 1 = candidate, 0 = no NDD evidence"),
+    ("Complete_Gene_List", "Source_lists", "Source lists reporting the gene, separated by '|': HC/LC = GeneTrek high-/low-confidence; "
+                                           "NEU/DEV = Orphanet neurological/developmental disorders; SF1 = SFARI score 1; "
+                                           "SF = SFARI score 2 or 3, or unscored; SJ = Sanchis-Juan et al.; none = no list"),
+    ("Supercandidates", "Gene", "Candidate gene (6,856 genes)"),
+    ("Supercandidates", "MOE_score", "Multi-Ontology Enrichment score, 0-5 (Section 4.4)"),
+    ("Supercandidates", "Libraries", "Annotation resources (GO BP, GO CC, GO MF, KEGG, Reactome) contributing to the MOE score"),
+    ("Cancer_List", "Gene", "Cancer-associated genes used in Section 2.7"),
+    ("MONDO_List", "Gene", "Gene annotated to at least one MONDO disease class"),
+    ("MONDO_List", "MONDO_classes", "MONDO disease classes of the gene, separated by '|'"),
+    ("SysNDD_MOE", "Gene", "Candidate gene with a SysNDD score"),
+    ("SysNDD_MOE", "SysNDD_score", "SysNDD gene score"),
+    ("SysNDD_MOE", "SysNDD_percentile", "Percentile of the SysNDD score among all scored genes"),
+    ("SysNDD_MOE", "MOE_score", "Multi-Ontology Enrichment score, 0-5"),
+]
+
+
+def _write_tsv(path, rows):
+    with open(path, "w", encoding="utf-8") as fh:
+        for r in rows:
+            fh.write("\t".join(str(x) for x in r) + "\n")
+
+
+def _read_tsv(path):
+    with open(path, encoding="utf-8") as fh:
+        return [line.rstrip("\n").split("\t") for line in fh if line.strip()]
+
+
+def write_supfile1_tables(gene_files, docs_dir):
+    """Write the relabelled, headed copies used for Supplementary File 1.
+
+    Returns a list of tsv2excel specifications (path:sheet:header_rows)."""
+    out_dir = Path(docs_dir) / "supfile_1_tables"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    specs = []
+
+    combined_file = gene_files.get("combined_file")
+    if combined_file and Path(combined_file).exists():
+        rows = _read_tsv(combined_file)
+        out = [("Gene", "Class", "Class_code", "Source_lists")]
+        for r in rows[1:]:
+            gene, cls, code, ann = r[0], r[1], r[2], r[3]
+            if cls not in SUPFILE_CLASS_LABELS:
+                raise ValueError(f"Unexpected class '{cls}' for {gene} in {combined_file}")
+            tags = [t for t in ann.split("|") if t and t != "none"]
+            unknown = [t for t in tags if t not in SUPFILE_SOURCE_LABELS]
+            if unknown:
+                raise ValueError(f"Unexpected source tag(s) {unknown} for {gene} in {combined_file}")
+            labs = sorted({SUPFILE_SOURCE_LABELS[t] for t in tags}, key=SUPFILE_SOURCE_ORDER.index)
+            out.append((gene, SUPFILE_CLASS_LABELS[cls], code, "|".join(labs) if labs else "none"))
+        f = out_dir / "complete_gene_list.tsv"
+        _write_tsv(f, out)
+        specs.append(f"{f}:Complete_Gene_List:1")
+
+    supercandidate_file = Path(docs_dir) / "supercandidate.tsv"
+    if supercandidate_file.exists():
+        rows = _read_tsv(supercandidate_file)
+        f = out_dir / "supercandidates.tsv"
+        _write_tsv(f, [("Gene", "MOE_score", "Libraries")] + [tuple(r) for r in rows[1:]])
+        specs.append(f"{f}:Supercandidates:1")
+
+    cancer_file = gene_files.get("cancer_file")
+    if cancer_file and Path(cancer_file).exists():
+        rows = _read_tsv(cancer_file)
+        f = out_dir / "cancer_list.tsv"
+        _write_tsv(f, [("Gene",)] + [tuple(r[:1]) for r in rows])
+        specs.append(f"{f}:Cancer_List:1")
+
+    mondo_file = gene_files.get("mondo_file")
+    if mondo_file and Path(mondo_file).exists():
+        rows = _read_tsv(mondo_file)
+        f = out_dir / "mondo_list.tsv"
+        _write_tsv(f, [("Gene", "MONDO_classes")] + [tuple(r[:2]) for r in rows])
+        specs.append(f"{f}:MONDO_List:1")
+
+    # sysndd_moe.tsv (Part H2) has no leading header and carries the joined
+    # header line ('Gene Score Quant Score') somewhere inside; the analyses
+    # that read it are left untouched, the Excel copy gets one proper header.
+    sysndd_moe_file = Path(docs_dir) / "sysndd_moe.tsv"
+    if sysndd_moe_file.exists():
+        rows = [r for r in _read_tsv(sysndd_moe_file) if r[0] != "Gene"]
+        rows.sort(key=lambda r: r[0])
+        f = out_dir / "sysndd_moe.tsv"
+        _write_tsv(f, [("Gene", "SysNDD_score", "SysNDD_percentile", "MOE_score")] + [tuple(r[:4]) for r in rows])
+        specs.append(f"{f}:SysNDD_MOE:1")
+
+    f = out_dir / "legend.tsv"
+    _write_tsv(f, SUPFILE1_LEGEND)
+    specs.append(f"{f}:Legend:1")
+    return specs
+
 
 def step_generate_excel(gene_files, output_dirs, conda_env):
     """Step 5: Generate Excel files"""
@@ -913,33 +1024,9 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     # ============================================
     print("\n--- Excel 1: Gene Lists ---", file=sys.stderr)
     
-    excel1_files = []
-    
-    # Complete gene list
-    combined_file = gene_files.get("combined_file")
-    if combined_file and Path(combined_file).exists():
-        excel1_files.append(f"{combined_file}:Complete_Gene_List:1")
-    
-    # MOE list (supercandidate.tsv)
-    if docs_dir.exists():
-        supercandidate_file = docs_dir / "supercandidate.tsv"
-        if supercandidate_file.exists():
-            excel1_files.append(f"{supercandidate_file}:Supercandidates:1")
-
-    # Cancer list
-    cancer_file = gene_files.get("cancer_file")
-    if cancer_file and Path(cancer_file).exists():
-        excel1_files.append(f"{cancer_file}:Cancer_List:0")
-    
-    # MONDO list
-    mondo_file = gene_files.get("mondo_file")
-    if mondo_file and Path(mondo_file).exists():
-        excel1_files.append(f"{mondo_file}:MONDO_List:0")
-    
-    # SysNDD MOE file
-    sysndd_moe_file = docs_dir / "sysndd_moe.tsv"
-    if sysndd_moe_file.exists():
-        excel1_files.append(f"{sysndd_moe_file}:SysNDD_MOE:1")
+    # Relabelled copies (manuscript class and source-list names, one header
+    # row per sheet, plus a Legend sheet); see write_supfile1_tables().
+    excel1_files = write_supfile1_tables(gene_files, docs_dir)
     
     if excel1_files:
         excel1_output = docs_dir / "supfile_1_ndd_gene_lists.xlsx"
@@ -975,9 +1062,9 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     ]
     
     gene_sets = [
-        {"name": "curated", "prefix": "gene_set2", "excel_name": "supfile_2_curated_enrichment.xlsx"},
+        {"name": "high-confidence", "prefix": "gene_set2", "excel_name": "supfile_2_high_confidence_enrichment.xlsx"},
         {"name": "candidate", "prefix": "gene_set1", "excel_name": "supfile_3_candidate_enrichment.xlsx"},
-        {"name": "no_evidence", "prefix": "gene_set0", "excel_name": "supfile_4_no_evidence_enrichment.xlsx"}
+        {"name": "no NDD evidence", "prefix": "gene_set0", "excel_name": "supfile_4_no_ndd_evidence_enrichment.xlsx"}
     ]
     
     for gene_set in gene_sets:
