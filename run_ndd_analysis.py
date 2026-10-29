@@ -879,7 +879,7 @@ def step_documentation(gene_files, output_dirs, conda_env):
         f.write("- `supfile_2_high_confidence_enrichment.xlsx`: High-confidence set enrichment results\n")
         f.write("- `supfile_3_candidate_enrichment.xlsx`: Candidate set enrichment results\n")
         f.write("- `supfile_4_no_ndd_evidence_enrichment.xlsx`: No NDD evidence set enrichment results\n")
-        f.write("- `supfile_5_cancer_compara.xlsx`: Comparison of significance of cancer and non cancer gene functions \n")
+        f.write("- `supfile_5_cancer_compara.xlsx`: Comparison of significance of cancer and non-cancer gene functions\n")
         f.write("- `ndd-report.xlsx`: Complete report with all tables\n\n")
         f.write("## Key Files\n")
         f.write("- `supercandidate.tsv`: Supercandidate genes\n")
