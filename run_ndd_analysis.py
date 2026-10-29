@@ -1114,13 +1114,15 @@ def step_generate_excel(gene_files, output_dirs, conda_env):
     excel5_files = []   
  
     if docs_dir.exists():
-        cancer_compara1 = docs_dir / "cancer_compara_set1_adj.txt"
-        if cancer_compara1.exists():
-            excel5_files.append(f"{cancer_compara1}:Cancer_Comparison_Set1:1")
-
+        # Sheet names state the gene set: set2 = high-confidence (internal
+        # 'curated'), set1 = candidate. High-confidence first, as in Fig. 7.
         cancer_compara2 = docs_dir / "cancer_compara_set2_adj.txt"
         if cancer_compara2.exists():
-            excel5_files.append(f"{cancer_compara2}:Cancer_Comparison_Set2:1")
+            excel5_files.append(f"{cancer_compara2}:High_Confidence_CA_vs_NCA:1")
+
+        cancer_compara1 = docs_dir / "cancer_compara_set1_adj.txt"
+        if cancer_compara1.exists():
+            excel5_files.append(f"{cancer_compara1}:Candidate_CA_vs_NCA:1")
 
     if excel5_files:
         excel5_output = docs_dir / "supfile_5_cancer_compara.xlsx"
