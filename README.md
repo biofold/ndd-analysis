@@ -43,5 +43,6 @@ A reproducible pipeline for identifying candidate genes in neurodevelopmental di
   documentation text): Creative Commons Attribution 4.0 International (CC BY 4.0), see
   [`LICENSE-DATA.md`](LICENSE-DATA.md). Third-party values remain under their sources' terms.
 
-Please cite: Rivi C, Turina P, Capriotti E. *Identifying top candidate genes associated with
-neurodevelopmental disorders*. Int. J. Mol. Sci. (manuscript ijms-4575333, in revision).
+Please cite: Rivi C, Turina MP, Capriotti E. *An Integrated Multi-Ontology Approach for Prioritizing
+Candidate Neurodevelopmental Disorder Genes*. Int. J. Mol. Sci. 2026, 27(22), 10272.
+https://doi.org/10.3390/ijms272210272
